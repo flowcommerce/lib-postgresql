@@ -4,7 +4,3 @@ code:
       version: latest
       generators:
         scala_models: "app/generated"
-    user:
-      version: latest
-      generators:
-        scala_models: "app/generated"
