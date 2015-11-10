@@ -8,17 +8,11 @@ object Pager {
     *   perObjectFunction: Function to call on each element
     * 
     * Example:
-    * Pager.eachPage[User] { offset =>
-    *   UsersDao.findAll(
-    *     Authorization.All,
-    *     organization = Some(organization),
-    *     publication = Some(publication),
-    *     limit = 100,
-    *     offset = offset
-    *   )
-    * } { user =>
-    *   println(user)
-    * }
+    *   Pager.eachPage { offset =>
+    *     ProjectsDao.findAll(offset = offset)
+    *   } { project =>
+    *     ProjectActor.sync(project)
+    *   }
     */
   def eachPage[T](
     pagerFunction: Int => Iterable[T]
