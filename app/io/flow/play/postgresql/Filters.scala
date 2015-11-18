@@ -10,7 +10,7 @@ object Filters {
         "and false"
       }
       case multiple => {
-        // TODO: Bind vars
+        // TODO: Bind vars. No security risk given UUID type
         s"and $column in (" + multiple.map( v => s"'$v'::uuid" ).mkString(", ") + ")"
       }
     }
