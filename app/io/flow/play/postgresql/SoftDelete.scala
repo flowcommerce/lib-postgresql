@@ -6,7 +6,8 @@ import play.api.Play.current
 import java.util.UUID
 
 /**
-  * 
+  * Basic helpers to build sql queries for "soft deleting" records (by
+  * updating deleted_at and deleted_by_guid columns)
   */
 object SoftDelete {
 
@@ -36,7 +37,7 @@ object SoftDelete {
     val (name, tpe, value) = field
     val SoftDeleteQuery = s"""
       update %s set deleted_by_guid = {deleted_by_guid}::uuid, deleted_at = now() where ${name} = {${name}}${tpe.getOrElse("")} and deleted_at is null
-                          """
+    """
     DB.withConnection { implicit c =>
       SQL(SoftDeleteQuery.format(tableName)).on('deleted_by_guid -> deletedBy, name -> value).execute()
     }
