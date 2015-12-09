@@ -1,6 +1,9 @@
 // Comment to get more information during initialization
 logLevel := Level.Warn
 
+// Artifactory credentials
+credentials += Credentials(Path.userHome / ".ivy2" / ".artifactory")
+
 // The Typesafe repository
 resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/"
 
