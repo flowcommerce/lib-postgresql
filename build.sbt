@@ -17,7 +17,8 @@ lazy val root = project
     libraryDependencies ++= Seq(
       ws,
       jdbc,
-      "com.typesafe.play" %% "anorm" % "2.5.0"
+      "com.typesafe.play" %% "anorm" % "2.5.0",
+      "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
     )
 )
 
