@@ -13,6 +13,8 @@ object Pager {
     *        publication = Some(Publication.DailySummary),
     *        offset = offset
     *      )
+    *    }.map { subscription =>
+    *      println(s"subscription: $subscription")
     *    }
     */
   def create[T](
