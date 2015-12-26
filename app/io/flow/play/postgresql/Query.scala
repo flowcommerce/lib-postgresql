@@ -55,15 +55,24 @@ case class Query(
     values match {
       case None => this
       case Some(v) => {
-        // TODO: Add bind variables
-        val cond = v match {
-          case Nil => "false"
-          case multiple => column + " in " + multiple.map(_.toString).mkString("('", "', '", "')")
+        v match {
+          case Nil => {
+            this.copy(
+              conditions = conditions ++ Seq("false")
+            )
+          }
+          case multiple => {
+            val bindVariables = multiple.zipWithIndex.map { case (value, i) =>
+              val n = if (i == 0) { column } else { s"${column}${i+1}" }
+              toBindVariable(n, value.toString)
+            }
+            val cond = s"$column in (%s)".format(bindVariables.map(_.name).mkString("{", "}, {", "}"))
+            this.copy(
+              conditions = conditions ++ Seq(cond),
+              bind = bind ++ bindVariables
+            )
+          }
         }
-
-        this.copy(
-          conditions = conditions ++ Seq(cond)
-        )
       }
     }
   }
@@ -303,7 +312,7 @@ case class Query(
     val idx = column.lastIndexOf(".")
     val simpleName = if (idx > 0) { column.substring(idx + 1) } else { column }.toLowerCase
     val name = bind.find(_.name == simpleName) match {
-      case Some(_) => s"${simpleName}_${bind.size + 1}"
+      case Some(_) => s"${simpleName}${bind.size + 1}"
       case None => simpleName
     }
     BindVariable(name.toLowerCase.trim, value)

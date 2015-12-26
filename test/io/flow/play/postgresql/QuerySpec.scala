@@ -6,31 +6,45 @@ import org.scalatest.{FunSpec, Matchers}
 
 class QuerySpec extends FunSpec with Matchers {
 
+  def validate(query: Query, sql: String, interpolate: String) {
+    query.sql should be(sql)
+    query.interpolate should be(interpolate)
+  }
+
   it("base") {
     Query("select 1").interpolate should be("select 1")
   }
 
   it("multi") {
-    Query("select * from users").multi("email", None).interpolate should be(
+    validate(
+      Query("select * from users").multi("email", None),
+      "select * from users",
       "select * from users"
     )
 
-    Query("select * from users").multi("email", Some(Nil)).interpolate should be(
+    validate(
+      Query("select * from users").multi("email", Some(Nil)),
+      "select * from users where false",
       "select * from users where false"
     )
 
-    Query("select * from users").multi("email", Some(Seq("mike@flow.io"))).interpolate should be(
+    validate(
+      Query("select * from users").multi("email", Some(Seq("mike@flow.io"))),
+      "select * from users where email in ({email})",
       "select * from users where email in ('mike@flow.io')"
     )
 
-    Query("select * from users").multi("email", Some(Seq("mike@flow.io", "paolo@flow.io"))).interpolate should be(
+    validate(
+      Query("select * from users").multi("email", Some(Seq("mike@flow.io", "paolo@flow.io"))),
+      "select * from users where email in ({email}, {email2})",
       "select * from users where email in ('mike@flow.io', 'paolo@flow.io')"
     )
 
-    // TODO:
-    //Query("select * from users").multi("users.email", Some(Seq("mike@flow.io"))).sql should be(
-    //  "select * from users where users.email in ({email})"
-    //)
+    validate(
+      Query("select * from users").multi("users.email", Some(Seq("mike@flow.io", "paolo@flow.io"))),
+      "select * from users where users.email in ({email}, {email2})",
+      "select * from users where users.email in ('mike@flow.io', 'paolo@flow.io')"
+    )
   }
 
   it("number") {
@@ -79,7 +93,7 @@ class QuerySpec extends FunSpec with Matchers {
       text("users.email", Some("mike@flow.io")).
       text("EMAIL", Some("paolo@flow.io")).
       sql should be(
-        "select * from users where users.email = trim({email}) and EMAIL = trim({email_2})"
+        "select * from users where users.email = trim({email}) and EMAIL = trim({email2})"
       )
   }
 
