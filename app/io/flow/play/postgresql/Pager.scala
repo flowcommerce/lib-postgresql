@@ -14,7 +14,7 @@ object Pager {
     *        offset = offset
     *      )
     *    }.map { subscription =>
-    *      println(s"subscription: $subscription")
+    *      println("subscription: " + subscription)
     *    }
     */
   def create[T](
