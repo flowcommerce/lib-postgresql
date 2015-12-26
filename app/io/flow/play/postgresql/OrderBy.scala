@@ -14,7 +14,7 @@ object OrderBy {
   def parse(
     value: String,
     defaultTable: Option[String] = None
-  ): Either[Seq[Error], OrderBy] = {
+  ): Either[Seq[String], OrderBy] = {
     Right(
       OrderBy(
         value.split(",").map(_.trim).filter(!_.isEmpty).map { parseDirection(_, defaultTable) }.map(_.sql)
