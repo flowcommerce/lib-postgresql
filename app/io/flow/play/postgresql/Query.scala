@@ -1,12 +1,31 @@
 package io.flow.play.postgresql
 
 import anorm._
+import java.util.UUID
 
-case class BindVariable(name: String, value: String) {
-  assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+trait BindVariable {
 
-  def toNamedParameter() = {
-    NamedParameter(name, value)
+  def name: String
+  def value: Any
+  def toNamedParameter(): NamedParameter
+
+}
+
+object BindVariable {
+
+  case class Str(override val name: String, override val value: String) extends BindVariable {
+    assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override def toNamedParameter() = NamedParameter(name, value)
+  }
+
+  case class Num(override val name: String, override val value: Number) extends BindVariable {
+    assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override def toNamedParameter() = NamedParameter(name, value.toString)
+  }
+
+  case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
+    assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
 }
@@ -64,7 +83,7 @@ case class Query(
           case multiple => {
             val bindVariables = multiple.zipWithIndex.map { case (value, i) =>
               val n = if (i == 0) { column } else { s"${column}${i+1}" }
-              toBindVariable(n, value.toString)
+              toBindVariable(n, value)
             }
             val cond = s"$column in (%s)".format(bindVariables.map(_.name).mkString("{", "}, {", "}"))
             this.copy(
@@ -95,7 +114,7 @@ case class Query(
       case Some(v) => {
         bind.find(_.name == name) match {
           case None => {
-            this.copy(bind = bind ++ Seq(BindVariable(name, v.toString)))
+            this.copy(bind = bind ++ Seq(BindVariable.Str(name, v.toString)))
           }
           case Some(_) => {
             sys.error(s"Bind variable named '$name' already defined")
@@ -112,7 +131,7 @@ case class Query(
     value match {
       case None => this
       case Some(v) => {
-        val bindVar = toBindVariable(column, v.toString)
+        val bindVar = toBindVariable(column, v)
 
         this.copy(
           conditions = conditions ++ Seq(s"$column = {${bindVar.name}}"),
@@ -136,7 +155,7 @@ case class Query(
     value match {
       case None => this
       case Some(v) => {
-        val bindVar = toBindVariable(bindVarName, v.toString)
+        val bindVar = toBindVariable(bindVarName, v)
         val condition = s"$column in (" + subqueryGenerator(bindVar.name) + ")"
 
         this.copy(
@@ -154,7 +173,7 @@ case class Query(
     value match {
       case None => this
       case Some(v) => {
-        val bindVar = toBindVariable(column, v.toString)
+        val bindVar = toBindVariable(column, v)
         this.copy(
           conditions = conditions ++ Seq(
             s"$column = {${bindVar.name}}::uuid"
@@ -174,7 +193,7 @@ case class Query(
     value match {
       case None => this
       case Some(v) => {
-        val bindVar = toBindVariable(column, v.toString)
+        val bindVar = toBindVariable(column, v)
 
         val exprColumn = withFunctions(column, columnFunctions)
         val exprValue = withFunctions(s"{${bindVar.name}}", valueFunctions)
@@ -308,14 +327,19 @@ case class Query(
   /**
     * Generates a unique, as friendly as possible, bind variable name
     */
-  private[this] def toBindVariable(column: String, value: String): BindVariable = {
+  private[this] def toBindVariable(column: String, value: Any): BindVariable = {
     val idx = column.lastIndexOf(".")
     val simpleName = if (idx > 0) { column.substring(idx + 1) } else { column }.toLowerCase
     val name = bind.find(_.name == simpleName) match {
       case Some(_) => s"${simpleName}${bind.size + 1}"
       case None => simpleName
     }
-    BindVariable(name.toLowerCase.trim, value)
+    value match {
+      case v: UUID => BindVariable.Uuid(name.toLowerCase.trim, v)
+      case v: Number => BindVariable.Num(name.toLowerCase.trim, v)
+      case v: String => BindVariable.Str(name.toLowerCase.trim, v)
+      case _ => BindVariable.Str(name.toLowerCase.trim, value.toString)
+    }
   }
 
   private[this] def withFunctions(name: String, options: Seq[Query.Function]): String = {
