@@ -3,30 +3,71 @@ package io.flow.play.postgresql
 object Pager {
 
   /**
-    * Iterator that takes two functions:
-    *   pagerFunction: Method to return a page of results
-    *   perObjectFunction: Function to call on each element
+    * Helper to create a pager, inferring the types from the function
+    * returning each page of results.
     * 
     * Example:
-    *   Pager.eachPage { offset =>
-    *     ProjectsDao.findAll(offset = offset)
-    *   } { project =>
-    *     ProjectActor.sync(project)
-    *   }
+    * 
+    *    Pager.create { offset =>
+    *      SubscriptionsDao.findAll(
+    *        publication = Some(Publication.DailySummary),
+    *        offset = offset
+    *      )
+    *    }.map { subscription =>
+    *      println(s"subscription: $subscription")
+    *    }
     */
-  def eachPage[T](
-    pagerFunction: Int => Iterable[T]
-  ) (
-    perObjectFunction: T => Unit
-  ) {
-    var offset = 0
-    var haveMore = true
+  def create[T](
+    f: Long => Iterable[T]
+  ): Pager[T] = {
+    new Pager[T] {
+      override def page(offset: Long): Iterable[T] = f(offset)
+    }
+  }
 
-    while (haveMore) {
-      val objects = pagerFunction(offset)
-      haveMore = !objects.isEmpty
-      offset += objects.size
-      objects.foreach { perObjectFunction(_) }
+}
+
+/**
+  * Trait that enables us to iterate over a large number of results
+  * (e.g. from a database query) one page at a time.
+  */
+trait Pager[T] extends Iterator[T] {
+
+  private[this] var nextResult: Option[T] = None
+  private[this] var currentPage: Seq[T] = Nil
+  private[this] var currentOffset: Int = 0
+  private[this] var currentIndex: Int = 0
+
+  prepareNextResult()
+
+  /**
+    * Returns the next page of results starting at the specified
+    * offset
+    */
+  def page(offset: Long): Iterable[T]
+
+  def hasNext: Boolean = !nextResult.isEmpty
+
+  def next: T = {
+    val result = nextResult.getOrElse {
+      throw new NoSuchElementException()
+    }
+    prepareNextResult()
+    result
+  }
+
+  private[this] def prepareNextResult() {
+    currentPage.lift(currentIndex) match {
+      case Some(result) => {
+        this.nextResult = Some(result)
+        currentIndex += 1
+      }
+      case None => {
+        currentPage = page(currentOffset).toSeq
+        currentOffset += currentPage.size
+        this.nextResult = currentPage.headOption
+        currentIndex = 1
+      }
     }
   }
 
