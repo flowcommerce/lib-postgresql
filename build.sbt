@@ -18,7 +18,7 @@ lazy val root = project
       ws,
       jdbc,
       "com.typesafe.play" %% "anorm" % "2.5.0",
-      "org.scalatest" % "scalatest_2.11" % "2.2.5" % "test"
+      "org.scalatest" %% "scalatest" % "2.2.5" % "test"
     )
 )
 
