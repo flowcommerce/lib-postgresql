@@ -52,4 +52,10 @@ class OrderBySpec extends FunSpec with Matchers {
     )
   }
 
+  it("prevents sql injection") {
+    OrderBy.parse("drop table users") should be(
+      Left(Seq("Sort[drop table users] contained a space which is not allowed"))
+    )
+  }
+
 }

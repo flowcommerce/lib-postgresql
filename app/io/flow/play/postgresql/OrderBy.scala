@@ -15,11 +15,31 @@ object OrderBy {
     value: String,
     defaultTable: Option[String] = None
   ): Either[Seq[String], OrderBy] = {
-    Right(
-      OrderBy(
-        value.split(",").map(_.trim).filter(!_.isEmpty).map { parseDirection(_, defaultTable) }.map(_.sql)
-      )
-    )
+    value.trim.split(",").map(_.trim).filter(!_.isEmpty).toList match {
+      case Nil => {
+        Right(OrderBy(Nil))
+      }
+      case clauses => {
+        clauses.find { c =>
+          c.indexOf(" ") >= 0
+        } match {
+          case None => {
+            Right(
+              OrderBy(
+                clauses.map { parseDirection(_, defaultTable) }.map(_.sql)
+              )
+            )
+          }
+          case Some(invalid) => {
+            Left(
+              Seq(
+                s"Sort[$invalid] contained a space which is not allowed"
+              )
+            )
+          }
+        }
+      }
+    }
   }
 
   def apply(
