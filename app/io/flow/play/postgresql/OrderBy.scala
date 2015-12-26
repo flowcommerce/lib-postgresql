@@ -22,7 +22,7 @@ object OrderBy {
     )
   }
 
-  def parseOrError(
+  def apply(
     value: String,
     defaultTable: Option[String] = None
   ): OrderBy = {
