@@ -190,7 +190,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("subquery") {
     Query("select * from users").
       subquery("users.id", "group_id", None, { bindVar =>
-        s"select user_id from memberships where group_id = {$bindVar}"
+        s"select user_id from memberships where group_id = ${bindVar.sql}"
       }).
       sql should be(
         "select * from users"
@@ -198,10 +198,10 @@ class QuerySpec extends FunSpec with Matchers {
 
     Query("select * from users").
       subquery("users.id", "group_id", Some(5), { bindVar =>
-        s"select user_id from memberships where group_id = {$bindVar}"
+        s"select user_id from memberships where group_id = ${bindVar.sql}"
       }).
       sql should be(
-        "select * from users where users.id in (select user_id from memberships where group_id = {group_id})"
+        "select * from users where users.id in (select user_id from memberships where group_id = {group_id}::numeric)"
       )
   }
 

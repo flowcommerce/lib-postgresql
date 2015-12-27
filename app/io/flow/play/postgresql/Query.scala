@@ -162,13 +162,13 @@ case class Query(
     column: String,
     bindVarName: String,
     value: Option[T],
-    subqueryGenerator: String => String
+    subqueryGenerator: BindVariable => String
   ): Query = {
     value match {
       case None => this
       case Some(v) => {
         val bindVar = toBindVariable(bindVarName, v)
-        val condition = s"$column in (" + subqueryGenerator(bindVar.name) + ")"
+        val condition = s"$column in (" + subqueryGenerator(bindVar) + ")"
 
         this.copy(
           conditions = conditions ++ Seq(condition),
