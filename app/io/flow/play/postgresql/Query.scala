@@ -7,6 +7,7 @@ trait BindVariable {
 
   def name: String
   def value: Any
+  def sql: String
   def toNamedParameter(): NamedParameter
 
 }
@@ -15,16 +16,19 @@ object BindVariable {
 
   case class Str(override val name: String, override val value: String) extends BindVariable {
     assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override val sql = s"{$name}"
     override def toNamedParameter() = NamedParameter(name, value)
   }
 
   case class Num(override val name: String, override val value: Number) extends BindVariable {
     assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override val sql = s"{$name}"
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
     assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
+    override val sql = s"{$name}::uuid"
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
@@ -85,7 +89,8 @@ case class Query(
               val n = if (i == 0) { column } else { s"${column}${i+1}" }
               toBindVariable(n, value)
             }
-            val cond = s"$column in (%s)".format(bindVariables.map(_.name).mkString("{", "}, {", "}"))
+
+            val cond = s"$column in (%s)".format(bindVariables.map(_.sql).mkString(", "))
             this.copy(
               conditions = conditions ++ Seq(cond),
               bind = bind ++ bindVariables
@@ -132,7 +137,6 @@ case class Query(
       case None => this
       case Some(v) => {
         val bindVar = toBindVariable(column, v)
-
         this.copy(
           conditions = conditions ++ Seq(s"$column = {${bindVar.name}}"),
           bind = bind ++ Seq(bindVar)
@@ -196,7 +200,7 @@ case class Query(
         val bindVar = toBindVariable(column, v)
 
         val exprColumn = withFunctions(column, columnFunctions)
-        val exprValue = withFunctions(s"{${bindVar.name}}", valueFunctions)
+        val exprValue = withFunctions(bindVar.sql, valueFunctions)
 
         this.copy(
           conditions = conditions ++ Seq(
@@ -306,13 +310,13 @@ case class Query(
     bind.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Num(_, value) => {
-          query.replace(s"{${bindVar.name}}", value.toString)
+          query.replace(bindVar.sql, value.toString)
         }
         case BindVariable.Uuid(_, value) => {
-          query.replace(s"{${bindVar.name}}", s"'$value'")
+          query.replace(bindVar.sql, s"'$value'::uuid")
         }
         case BindVariable.Str(_, value) => {
-          query.replace(s"{${bindVar.name}}", s"'$value'")
+          query.replace(bindVar.sql, s"'$value'")
         }
       }
     }

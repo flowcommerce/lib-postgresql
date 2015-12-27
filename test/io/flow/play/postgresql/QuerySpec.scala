@@ -47,6 +47,15 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("multi with uuid") {
+    val guids = Seq(UUID.randomUUID, UUID.randomUUID)
+    validate(
+      Query("select * from users").multi("guid", Some(guids)),
+      "select * from users where guid in ({guid}::uuid, {guid2}::uuid)",
+      "select * from users where guid in " + guids.mkString("('", "'::uuid, '", "'::uuid)")
+    )
+  }
+
   it("number") {
     Query("select * from users").number("age", None).interpolate should be("select * from users")
     Query("select * from users").number("age", Some(5)).sql should be("select * from users where age = {age}")
