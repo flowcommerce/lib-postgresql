@@ -56,6 +56,20 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("multi with functions") {
+    val ids = Seq("a", "b")
+    validate(
+      Query("select * from users").multi(
+        "id",
+        Some(ids),
+        columnFunctions = Seq(Query.Function.Lower),
+        valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
+      ),
+      "select * from users where lower(id) in (lower(trim({id})), lower(trim({id2})))",
+      "select * from users where lower(id) in (lower(trim('a')), lower(trim('b')))"
+    )
+  }
+
   it("number") {
     Query("select * from users").number("age", None).interpolate should be("select * from users")
     Query("select * from users").number("age", Some(5)).sql should be("select * from users where age = {age}")

@@ -73,7 +73,9 @@ case class Query(
 
   def multi[T](
     column: String,
-    values: Option[Seq[T]]
+    values: Option[Seq[T]],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
     values match {
       case None => this
@@ -90,7 +92,13 @@ case class Query(
               toBindVariable(n, value)
             }
 
-            val cond = s"$column in (%s)".format(bindVariables.map(_.sql).mkString(", "))
+            val exprColumn = withFunctions(column, columnFunctions)
+
+            val cond = s"$exprColumn in (%s)".format(
+              bindVariables.map(_.sql).map { v =>
+                withFunctions(v, valueFunctions)
+              }.mkString(", ")
+            )
             this.copy(
               conditions = conditions ++ Seq(cond),
               bind = bind ++ bindVariables
