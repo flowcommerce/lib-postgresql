@@ -72,7 +72,7 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("number") {
     Query("select * from users").number("age", None).interpolate should be("select * from users")
-    Query("select * from users").number("age", Some(5)).sql should be("select * from users where age = {age}")
+    Query("select * from users").number("age", Some(5)).sql should be("select * from users where age = {age}::numeric")
     Query("select * from users").number("age", Some(5)).interpolate should be("select * from users where age = 5")
   }
 

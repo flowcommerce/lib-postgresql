@@ -22,7 +22,7 @@ object BindVariable {
 
   case class Num(override val name: String, override val value: Number) extends BindVariable {
     assert(name == name.toLowerCase.trim, s"Bind variable[$name] must be lowercase and trimmed")
-    override val sql = s"{$name}"
+    override val sql = s"{$name}::numeric"
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
