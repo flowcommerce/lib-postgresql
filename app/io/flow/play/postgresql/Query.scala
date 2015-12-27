@@ -146,7 +146,7 @@ case class Query(
       case Some(v) => {
         val bindVar = toBindVariable(column, v)
         this.copy(
-          conditions = conditions ++ Seq(s"$column = {${bindVar.name}}"),
+          conditions = conditions ++ Seq(s"$column = ${bindVar.sql}"),
           bind = bind ++ Seq(bindVar)
         )
       }
@@ -188,7 +188,7 @@ case class Query(
         val bindVar = toBindVariable(column, v)
         this.copy(
           conditions = conditions ++ Seq(
-            s"$column = {${bindVar.name}}::uuid"
+            s"$column = ${bindVar.sql}"
           ),
           bind = bind ++ Seq(bindVar)
         )
