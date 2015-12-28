@@ -71,7 +71,36 @@ case class Query(
   offset: Option[Long] = None
 ) {
 
-  def multi[T](
+  def equals[T](column: String, value: Option[T]): Query = operation(column, "=", value)
+  def notEquals[T](column: String, value: Option[T]): Query = operation(column, "!=", value)
+  def lessThan[T](column: String, value: Option[T]): Query = operation(column, "<", value)
+  def lessThanOrEquals[T](column: String, value: Option[T]): Query = operation(column, "<=", value)
+  def greaterThan[T](column: String, value: Option[T]): Query = operation(column, ">", value)
+  def greaterThanOrEquals[T](column: String, value: Option[T]): Query = operation(column, ">=", value)
+
+  def operation[T](
+    column: String,
+    operator: String,
+    value: Option[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
+    value match {
+      case None => this
+      case Some(v) => {
+        val bindVar = toBindVariable(column, v)
+        val exprColumn = withFunctions(column, columnFunctions)
+        val exprValue = withFunctions(bindVar.sql, valueFunctions)
+
+        this.copy(
+          conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
+          bind = bind ++ Seq(bindVar)
+        )
+      }
+    }
+  }
+
+  def in[T](
     column: String,
     values: Option[Seq[T]],
     columnFunctions: Seq[Query.Function] = Nil,
@@ -137,22 +166,6 @@ case class Query(
     }
   }
 
-  def number[Number](
-    column: String,
-    value: Option[Number]
-  ): Query = {
-    value match {
-      case None => this
-      case Some(v) => {
-        val bindVar = toBindVariable(column, v)
-        this.copy(
-          conditions = conditions ++ Seq(s"$column = ${bindVar.sql}"),
-          bind = bind ++ Seq(bindVar)
-        )
-      }
-    }
-  }
-
   /**
     * 
     * @param subquery Accepts the name of the bind variable and
@@ -172,24 +185,6 @@ case class Query(
 
         this.copy(
           conditions = conditions ++ Seq(condition),
-          bind = bind ++ Seq(bindVar)
-        )
-      }
-    }
-  }
-
-  def uuid[T](
-    column: String,
-    value: Option[T]
-  ): Query = {
-    value match {
-      case None => this
-      case Some(v) => {
-        val bindVar = toBindVariable(column, v)
-        this.copy(
-          conditions = conditions ++ Seq(
-            s"$column = ${bindVar.sql}"
-          ),
           bind = bind ++ Seq(bindVar)
         )
       }
