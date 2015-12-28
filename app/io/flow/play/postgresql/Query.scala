@@ -197,22 +197,13 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
   ): Query = {
-    value match {
-      case None => this
-      case Some(v) => {
-        val bindVar = toBindVariable(column, v)
-
-        val exprColumn = withFunctions(column, columnFunctions)
-        val exprValue = withFunctions(bindVar.sql, valueFunctions)
-
-        this.copy(
-          conditions = conditions ++ Seq(
-            s"$exprColumn = $exprValue"
-          ),
-          bind = bind ++ Seq(bindVar)
-        )
-      }
-    }
+    operation(
+      column = column,
+      operator = "=",
+      value = value,
+      columnFunctions = columnFunctions,
+      valueFunctions = valueFunctions
+    )
   }
 
   def boolean(column: String, value: Option[Boolean]): Query = {
