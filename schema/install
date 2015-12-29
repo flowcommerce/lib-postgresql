@@ -1,0 +1,41 @@
+#!/usr/bin/env ruby
+
+pwd = `pwd`.strip
+
+if !File.directory?("scripts")
+   puts "** ERROR: Run script from the schema directory of your project"
+   exit(1)
+end
+
+dir = File.dirname(__FILE__)
+
+tmp = "lib-postgresql-schema-tmp.sql"
+
+def format(path)
+  path.sub(/.*lib-postgresql\//, 'https://github.com/flowcommerce/lib-postgresql/blob/master/')
+end
+
+begin
+  File.open(tmp, "w") do |out|
+    out << "-- File created automatically by #{format(__FILE__)}\n\n"
+  
+    Dir.glob("#{dir}/*.sql").each do |path|
+      out << "\n-- Start of file #{format(path)}\n"
+      out << IO.read(path)
+    end
+  end
+
+  cmd = "sem-add #{tmp}"
+  if !system(cmd)
+    puts "** ERROR: sem-add failed"
+    exit(1)
+  end
+  puts "Example commit:"
+  puts " git commit -m 'Installed lib-postgresql scripts' scripts"
+ensure
+  if File.exists?(tmp)
+    File.delete(tmp)
+  end
+end
+
+
