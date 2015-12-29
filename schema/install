@@ -1,7 +1,5 @@
 #!/usr/bin/env ruby
 
-pwd = `pwd`.strip
-
 if !File.directory?("scripts")
    puts "** ERROR: Run script from the schema directory of your project"
    exit(1)
