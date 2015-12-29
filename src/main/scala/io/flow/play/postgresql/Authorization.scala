@@ -1,20 +1,18 @@
 package io.flow.postgresql
 
-import java.util.UUID
-
 sealed trait Authorization
 
 object Authorization {
 
   case object PublicOnly extends Authorization
   case object All extends Authorization
-  case class User(guid: UUID) extends Authorization
-  case class Organization(key: String) extends Authorization
+  case class User(id: String) extends Authorization
+  case class Organization(id: String) extends Authorization
 
-  def fromUser(userGuid: Option[UUID]): Authorization = {
-    userGuid match {
+  def fromUser(userId: Option[String]): Authorization = {
+    userId match {
       case None => Authorization.PublicOnly
-      case Some(guid) => Authorization.User(guid)
+      case Some(id) => Authorization.User(id)
     }
   }
 
