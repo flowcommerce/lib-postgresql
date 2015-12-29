@@ -1,4 +1,4 @@
-package io.flow.play.postgresql
+package io.flow.postgresql
 
 import anorm._
 import java.util.UUID

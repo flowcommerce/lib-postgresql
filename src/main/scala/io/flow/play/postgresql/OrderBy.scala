@@ -1,4 +1,4 @@
-package io.flow.play.postgresql
+package io.flow.postgresql
 
 case class OrderBy(clauses: Seq[String]) {
 

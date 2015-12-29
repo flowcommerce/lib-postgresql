@@ -1,2 +1,3 @@
-# lib-play-postgresql
-Libraries support psql for play
+# lib-postgresql
+
+Libraries supporting postgresql at flow

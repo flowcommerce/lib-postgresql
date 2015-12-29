@@ -1,6 +1,0 @@
-code:
-  flow:
-    common:
-      version: latest
-      generators:
-        scala_models: "app/generated"

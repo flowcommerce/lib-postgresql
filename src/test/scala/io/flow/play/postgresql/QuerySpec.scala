@@ -1,4 +1,4 @@
-package io.flow.play.postgresql
+package io.flow.postgresql
 
 import scala.util.{Failure, Success, Try}
 import java.util.UUID
