@@ -10,7 +10,8 @@ CREATE OR REPLACE FUNCTION setup(
     LANGUAGE plpgsql
     AS $$
 begin
-  execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add updated_by_user_id text';
+  execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add created_at timestamptz default now() not null';
+  execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add updated_by_user_id text not null';
   execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add deleted_at timestamptz';
   perform journal.refresh_journaling(p_schema_name, p_table_name, p_journal_schema_name, coalesce(p_journal_table_name, p_table_name));
 end;
