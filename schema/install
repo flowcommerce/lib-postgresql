@@ -7,13 +7,21 @@ if !File.directory?("scripts")
    exit(1)
 end
 
-dir = File.dirname(__FILE__)
-
-tmp = "lib-postgresql-schema-tmp.sql"
+def assert_installed(cmd, url)
+  if !system("which %s > /dev/null" % cmd)
+    puts "** ERROR: Please install %s: %s" % [cmd, url]
+    exit(1)
+  end
+end
 
 def format(path)
   path.sub(/.*lib-postgresql\//, 'https://github.com/flowcommerce/lib-postgresql/blob/master/')
 end
+
+assert_installed("sem-add", "https://github.com/mbryzek/schema-evolution-manager")
+
+dir = File.dirname(__FILE__)
+tmp = "lib-postgresql-schema-tmp.sql"
 
 begin
   File.open(tmp, "w") do |out|
