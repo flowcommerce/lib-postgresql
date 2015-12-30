@@ -116,7 +116,7 @@ begin
 end;
 $$;
 
-create or replace function journal.create_primary_key_index(
+create or replace function journal.primary_key_columns(
   p_source_schema_name in varchar, p_source_table_name in varchar,
   p_target_schema_name in varchar, p_target_table_name in varchar
 ) returns void language plpgsql as $$
@@ -143,7 +143,7 @@ begin
       v_columns := v_columns || ', ';
     end if;
     v_columns := v_columns || row.column_name;
-
+    execute 'alter table ' || p_target_schema_name || '.' || p_target_table_name || ' alter column ' || row.column_name || ' set not null';
   end loop;
 
   if v_columns != '' then
@@ -182,7 +182,7 @@ begin
     execute 'alter table ' || v_journal_name || ' add journal_operation text not null ';
     execute 'alter table ' || v_journal_name || ' add journal_id bigserial primary key ';
     execute 'comment on table ' || v_journal_name || ' is ''Created by plsql function refresh_journaling to shadow all inserts and updates on the table ' || p_source_schema_name || '.' || p_source_table_name || '''';
-    perform journal.create_primary_key_index(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
+    perform journal.primary_key_columns(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
   end if;
 
   perform journal.refresh_journal_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
