@@ -41,7 +41,7 @@ $$;
 
 create or replace function lower_non_empty_trimmed_string(p_value text) returns boolean immutable cost 1 language plpgsql as $$
   begin
-    if (non_empty_trimmed_string(p_value) and lower(p_value) = p_value) then
+    if (util.non_empty_trimmed_string(p_value) and lower(p_value) = p_value) then
       return true;
     else
       return false;
