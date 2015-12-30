@@ -70,6 +70,7 @@ declare
   v_first boolean;
   v_sql text;
   v_target_sql text;
+  v_name text;
 begin
   v_journal_name = p_target_schema_name || '.' || p_target_table_name;
   v_source_name = p_source_schema_name || '.' || p_source_table_name;
@@ -77,6 +78,13 @@ begin
   -- create the function
   v_sql = 'create or replace function ' || v_journal_name || '_insert() returns trigger language plpgsql as ''';
   v_sql := v_sql || ' begin ';
+
+  for v_name in (select * from journal.primary_key_columns(p_source_schema_name, p_source_table_name)) loop
+    v_sql := v_sql || '  if (TG_OP=''''UPDATE'''' and (old.' || v_name || ' != new.' || v_name || ')) then';
+    v_sql := v_sql || '    raise exception ''''Table[' || v_source_name || '] is journaled. Updates to primary key column[' || v_name || '] are not supported as this would make it impossible to follow the history of this row in the journal table[' || v_journal_name || ']'''';';
+    v_sql := v_sql || '  end if;';
+  end loop;
+
   v_sql := v_sql || '  insert into ' || v_journal_name || ' (journal_operation';
   v_target_sql = 'TG_OP';
 
@@ -117,12 +125,11 @@ end;
 $$;
 
 create or replace function journal.primary_key_columns(
-  p_source_schema_name in varchar, p_source_table_name in varchar,
-  p_target_schema_name in varchar, p_target_table_name in varchar
-) returns void language plpgsql as $$
+  p_schema_name in varchar,
+  p_table_name in varchar
+) returns setof text language plpgsql AS $$
 declare
   row record;
-  v_columns character varying := '';
 begin
   for row in (
       select key_column_usage.column_name
@@ -132,18 +139,32 @@ begin
             and key_column_usage.table_schema = table_constraints.table_schema
             and key_column_usage.constraint_name = table_constraints.constraint_name
        where table_constraints.constraint_type = 'PRIMARY KEY'
-         and table_constraints.table_schema = p_source_schema_name
-         and table_constraints.table_name = p_source_table_name
+         and table_constraints.table_schema = p_schema_name
+         and table_constraints.table_name = p_table_name
        order by coalesce(key_column_usage.position_in_unique_constraint, 0),
                 coalesce(key_column_usage.ordinal_position, 0),
                 key_column_usage.column_name
   ) loop
+    return next row.column_name;
+  end loop;
+end;
+$$;
 
+
+create or replace function journal.add_primary_key_data(
+  p_source_schema_name in varchar, p_source_table_name in varchar,
+  p_target_schema_name in varchar, p_target_table_name in varchar
+) returns void language plpgsql as $$
+declare
+  v_name text;
+  v_columns character varying := '';
+begin
+  for v_name in (select * from journal.primary_key_columns(p_source_schema_name, p_source_table_name)) loop
     if v_columns != '' then
       v_columns := v_columns || ', ';
     end if;
-    v_columns := v_columns || row.column_name;
-    execute 'alter table ' || p_target_schema_name || '.' || p_target_table_name || ' alter column ' || row.column_name || ' set not null';
+    v_columns := v_columns || v_name;
+    execute 'alter table ' || p_target_schema_name || '.' || p_target_table_name || ' alter column ' || v_name || ' set not null';
   end loop;
 
   if v_columns != '' then
@@ -183,7 +204,7 @@ begin
     execute 'alter table ' || v_journal_name || ' add journal_operation text not null ';
     execute 'alter table ' || v_journal_name || ' add journal_id bigserial primary key ';
     execute 'comment on table ' || v_journal_name || ' is ''Created by plsql function refresh_journaling to shadow all inserts and updates on the table ' || p_source_schema_name || '.' || p_source_table_name || '''';
-    perform journal.primary_key_columns(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
+    perform journal.add_primary_key_data(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
   end if;
 
   perform journal.refresh_journal_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
