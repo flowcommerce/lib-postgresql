@@ -167,7 +167,8 @@ begin
     for row in (select column_name, journal.get_data_type_string(information_schema.columns.*) as data_type from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
 
       -- NB: Specifically choosing to not drop deleted columns from the journal table, to preserve the data.
-      -- There are no constraints on the journaling table columns anyway, so leaving it populated with null will be fine.
+      -- There are no constraints (other than not null on primary key columns) on the journaling table
+      -- columns anyway, so leaving it populated with null will be fine.
       select journal.get_data_type_string(information_schema.columns.*) into v_data_type from information_schema.columns where table_schema = p_target_schema_name and table_name = p_target_table_name and column_name = row.column_name;
       if not found then
         execute 'alter table ' || v_journal_name || ' add ' || row.column_name || ' ' || row.data_type;
