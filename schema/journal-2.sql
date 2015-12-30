@@ -1,13 +1,15 @@
 create or replace function journal.refresh_journal_trigger(
-  p_source_schema_name in varchar, p_source_table_name in varchar,
-  p_target_schema_name in varchar, p_target_table_name in varchar
+  p_source_schema_name in varchar,
+  p_source_table_name in varchar,
+  p_target_schema_name in varchar = 'journal',
+  p_target_table_name in varchar = null
 ) returns varchar language plpgsql as $$
 declare
   v_insert_trigger_name text;
   v_delete_trigger_name text;
 begin
-  v_insert_trigger_name := journal.refresh_journal_insert_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
-  v_delete_trigger_name := journal.refresh_journal_delete_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
+  v_insert_trigger_name := journal.refresh_journal_insert_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, coalesce(p_target_table_name, p_source_table_name));
+  v_delete_trigger_name := journal.refresh_journal_delete_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, coalesce(p_target_table_name, p_source_table_name));
 
   return v_insert_trigger_name || ' ' || v_delete_trigger_name;
 end;
@@ -23,6 +25,7 @@ declare
   v_source_name text;
   v_trigger_name text;
   v_sql text;
+  v_target_sql text;
 begin
   v_journal_name = p_target_schema_name || '.' || p_target_table_name;
   v_source_name = p_source_schema_name || '.' || p_source_table_name;
@@ -31,12 +34,14 @@ begin
   v_sql = 'create or replace function ' || v_journal_name || '_delete() returns trigger language plpgsql as ''';
   v_sql := v_sql || ' begin ';
   v_sql := v_sql || '  insert into ' || v_journal_name || ' (journal_operation';
+  v_target_sql = 'TG_OP';
 
   for row in (select column_name from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
     v_sql := v_sql || ', ' || row.column_name;
+    v_target_sql := v_target_sql || ', old.' || row.column_name;
   end loop;
 
-  v_sql := v_sql || ') values (TG_OP, old.*); ';
+  v_sql := v_sql || ') values (TG_OP' || v_target_sql || '); ';
   v_sql := v_sql || ' return null; end; ''';
 
   execute v_sql;
@@ -64,6 +69,7 @@ declare
   v_trigger_name text;
   v_first boolean;
   v_sql text;
+  v_target_sql text;
 begin
   v_journal_name = p_target_schema_name || '.' || p_target_table_name;
   v_source_name = p_source_schema_name || '.' || p_source_table_name;
@@ -72,12 +78,14 @@ begin
   v_sql = 'create or replace function ' || v_journal_name || '_insert() returns trigger language plpgsql as ''';
   v_sql := v_sql || ' begin ';
   v_sql := v_sql || '  insert into ' || v_journal_name || ' (journal_operation';
+  v_target_sql = 'TG_OP';
 
   for row in (select column_name from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
     v_sql := v_sql || ', ' || row.column_name;
+    v_target_sql := v_target_sql || ', new.' || row.column_name;
   end loop;
 
-  v_sql := v_sql || ') values (TG_OP, new.*); ';
+  v_sql := v_sql || ') values (' || v_target_sql || '); ';
   v_sql := v_sql || ' return null; end; ''';
 
   execute v_sql;
