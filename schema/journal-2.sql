@@ -108,7 +108,9 @@ create or replace function journal.get_data_type_string(
 begin
   return case p_column.data_type
     when 'numeric' then p_column.data_type || '(' || p_column.numeric_precision_radix::varchar || ',' || p_column.numeric_scale::varchar || ')'
-    when 'character' then p_column.data_type || '(' || p_column.character_maximum_length::varchar || ')'
+    when 'character' then 'text'
+    when 'character varying' then 'text'
+    when '"char"' then 'text'
     else p_column.data_type
     end;
 end;
