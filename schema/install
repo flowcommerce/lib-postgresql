@@ -19,6 +19,26 @@ def format(path)
   path.sub(/.*lib-postgresql\//, 'https://github.com/flowcommerce/lib-postgresql/blob/master/')
 end
 
+def different?(updated, original)
+  if !File.exists?(updated)
+    true
+  elsif !File.exists?(original)
+    true
+  else
+    IO.read(updated).strip != IO.read(original).strip
+  end
+end
+  
+def run_command(cmd)
+  puts cmd
+  if !system(cmd)
+    puts "** ERROR: command failed"
+    exit(1)
+  end
+  puts "Example commit:"
+  puts " git commit -m 'Installed lib-postgresql scripts' scripts"
+end
+
 assert_installed("sem-add", "https://github.com/mbryzek/schema-evolution-manager")
 
 dir = File.dirname(__FILE__)
@@ -35,22 +55,14 @@ begin
   end
 
   if name == ""
-    cmd = "sem-add #{tmp}"
+    run_command("sem-add #{tmp}")
+  elsif different?(tmp, name)
+    run_command("cp #{tmp} #{name}")
   else
-    cmd = "cp #{tmp} #{name}"
+    puts "No changes compared to #{name}"
   end
-
-  puts cmd
-  if !system(cmd)
-    puts "** ERROR: command failed"
-    exit(1)
-  end
-  puts "Example commit:"
-  puts " git commit -m 'Installed lib-postgresql scripts' scripts"
 ensure
   if File.exists?(tmp)
     File.delete(tmp)
   end
 end
-
-
