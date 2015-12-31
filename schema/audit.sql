@@ -14,5 +14,6 @@ begin
   execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add updated_by_user_id text not null';
   execute 'alter table ' || p_schema_name || '.' || p_table_name || ' add deleted_at timestamptz';
   perform journal.refresh_journaling(p_schema_name, p_table_name, p_journal_schema_name, coalesce(p_journal_table_name, p_table_name));
+  perform schema_evolution_manager.create_prevent_immediate_delete_trigger(p_schema_name, p_table_name);
 end;
 $$;
