@@ -11,7 +11,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.0",
-      "org.scalatest" %% "scalatest" % "2.2.5" % Test
+      "org.scalatest" %% "scalatest" % "2.2.6" % Test
     )
   )
 
@@ -23,4 +23,3 @@ publishTo := {
     Some("Artifactory Realm" at s"$host/libs-release-local")
   }
 }
-
