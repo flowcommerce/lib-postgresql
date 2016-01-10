@@ -58,4 +58,15 @@ class OrderBySpec extends FunSpec with Matchers {
     )
   }
 
+  it("rejects invalid function") {
+    OrderBy.parse("foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower")))
+    OrderBy.parse("key,foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower")))
+    OrderBy.parse("key,foo(key),bar(key)") should be(Left(
+      Seq(
+        "foo(key): Invalid function[foo]. Must be one of: lower",
+        "bar(key): Invalid function[bar]. Must be one of: lower"
+      )
+    ))
+  }
+
 }

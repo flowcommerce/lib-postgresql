@@ -11,6 +11,8 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
+  val ValidFunctions = Seq("lower")
+
   def parse(
     value: String,
     defaultTable: Option[String] = None
@@ -24,11 +26,15 @@ object OrderBy {
           c.indexOf(" ") >= 0
         } match {
           case None => {
-            Right(
-              OrderBy(
-                clauses.map { parseDirection(_, defaultTable) }.map(_.sql)
+            val parsed: Seq[Either[String, Clause]] = clauses.map { parseDirection(_, defaultTable) }
+            parsed.collect {case Left(x) => x } match {
+              case Nil => Right(
+                OrderBy(
+                  parsed.collect {case Right(x) => x }.map(_.sql)
+                )
               )
-            )
+              case errors => Left(errors)
+            }
           }
           case Some(invalid) => {
             Left(
@@ -55,7 +61,7 @@ object OrderBy {
   private[this] def parseDirection(
     value: String,
     tableName: Option[String]
-  ): Clause = {
+  ): Either[String, Clause] = {
     if (value.startsWith("-")) {
       parseFunction(Direction.Desc, value.substring(1), tableName)
     } else if (value.startsWith("+")) {
@@ -72,13 +78,18 @@ object OrderBy {
     direction: Direction,
     value: String,
     tableName: Option[String]
-  ): Clause = {
+  ): Either[String, Clause] = {
     value match {
       case FunctionRegexp(function, column) => {
-        Clause(direction, withTable(column, tableName), function = Some(function))
+        ValidFunctions.contains(function) match {
+          case false => Left(s"$value: Invalid function[$function]. Must be one of: " + ValidFunctions.mkString(", "))
+          case true => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+        }
       }
       case _ => {
-        Clause(direction, withTable(value, tableName))
+        Right(
+          Clause(direction, withTable(value, tableName))
+        )
       }
     }
   }
