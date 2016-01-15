@@ -41,7 +41,7 @@ begin
     v_target_sql := v_target_sql || ', old.' || row.column_name;
   end loop;
 
-  v_sql := v_sql || ') values (TG_OP' || v_target_sql || '); ';
+  v_sql := v_sql || ') values (' || v_target_sql || '); ';
   v_sql := v_sql || ' return null; end; ''';
 
   execute v_sql;
