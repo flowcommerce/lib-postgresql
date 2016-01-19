@@ -29,14 +29,14 @@ def different?(updated, original)
   end
 end
   
-def run_command(cmd)
+def run_command(cmd, action, path="scripts")
   puts cmd
   if !system(cmd)
     puts "** ERROR: command failed"
     exit(1)
   end
   puts "Example commit:"
-  puts " git commit -m 'Installed lib-postgresql scripts' scripts"
+  puts " git commit -m '%s lib-postgresql scripts' %s" % [action, path]
 end
 
 assert_installed("sem-add", "https://github.com/mbryzek/schema-evolution-manager")
@@ -55,9 +55,9 @@ begin
   end
 
   if name == ""
-    run_command("sem-add #{tmp}")
+    run_command("sem-add #{tmp}", "Installed")
   elsif different?(tmp, name)
-    run_command("cp #{tmp} #{name}")
+    run_command("cp #{tmp} #{name}", "Updated", name)
   else
     puts "No changes compared to #{name}"
   end
