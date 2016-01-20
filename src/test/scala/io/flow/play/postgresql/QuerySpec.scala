@@ -7,8 +7,27 @@ import org.scalatest.{FunSpec, Matchers}
 class QuerySpec extends FunSpec with Matchers {
 
   def validate(query: Query, sql: String, interpolate: String) {
-    query.sql should be(sql)
-    query.interpolate should be(interpolate)
+    query.sql == sql match {
+      case true => {
+        // No-op
+      }
+      case false => {
+        println("expected: " + sql)
+        println("  actual: " + query.sql)
+        query.sql should be(sql)
+      }
+    }
+
+    query.interpolate == interpolate match {
+      case true => {
+        // No-op
+      }
+      case false => {
+        println("expected: " + interpolate)
+        println("  actual: " + query.interpolate)
+        query.interpolate should be(interpolate)
+      }
+    }
   }
 
   it("base") {
@@ -69,31 +88,31 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("in") {
     validate(
-      Query("select * from users").in("email", None),
+      Query("select * from users").optionalIn("email", None),
       "select * from users",
       "select * from users"
     )
 
     validate(
-      Query("select * from users").in("email", Some(Nil)),
+      Query("select * from users").optionalIn("email", Some(Nil)),
       "select * from users where false",
       "select * from users where false"
     )
 
     validate(
-      Query("select * from users").in("email", Some(Seq("mike@flow.io"))),
+      Query("select * from users").in("email", Seq("mike@flow.io")),
       "select * from users where email in ({email})",
       "select * from users where email in ('mike@flow.io')"
     )
 
     validate(
-      Query("select * from users").in("email", Some(Seq("mike@flow.io", "paolo@flow.io"))),
+      Query("select * from users").in("email", Seq("mike@flow.io", "paolo@flow.io")),
       "select * from users where email in ({email}, {email2})",
       "select * from users where email in ('mike@flow.io', 'paolo@flow.io')"
     )
 
     validate(
-      Query("select * from users").in("users.email", Some(Seq("mike@flow.io", "paolo@flow.io"))),
+      Query("select * from users").in("users.email", Seq("mike@flow.io", "paolo@flow.io")),
       "select * from users where users.email in ({email}, {email2})",
       "select * from users where users.email in ('mike@flow.io', 'paolo@flow.io')"
     )
@@ -102,7 +121,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("in with uuid") {
     val guids = Seq(UUID.randomUUID, UUID.randomUUID)
     validate(
-      Query("select * from users").in("guid", Some(guids)),
+      Query("select * from users").in("guid", guids),
       "select * from users where guid in ({guid}::uuid, {guid2}::uuid)",
       "select * from users where guid in " + guids.mkString("('", "'::uuid, '", "'::uuid)")
     )
@@ -113,7 +132,7 @@ class QuerySpec extends FunSpec with Matchers {
     validate(
       Query("select * from users").in(
         "id",
-        Some(ids),
+        ids,
         columnFunctions = Seq(Query.Function.Lower),
         valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
       ),
@@ -153,13 +172,13 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("text") {
     validate(
-      Query("select * from users").text("users.email", None),
+      Query("select * from users").optionalText("users.email", None),
       "select * from users",
       "select * from users"
     )
 
     validate(
-      Query("select * from users").text("users.email", Some("mike@flow.io")),
+      Query("select * from users").optionalText("users.email", Some("mike@flow.io")),
       "select * from users where users.email = trim({email})",
       "select * from users where users.email = trim('mike@flow.io')"
     )
@@ -168,7 +187,7 @@ class QuerySpec extends FunSpec with Matchers {
       Query("select * from users").
         text(
           "users.email",
-          Some("mike@flow.io"),
+          "mike@flow.io",
           columnFunctions = Seq(Query.Function.Lower),
           valueFunctions = Seq(Query.Function.Trim, Query.Function.Lower)
         ),
@@ -180,27 +199,53 @@ class QuerySpec extends FunSpec with Matchers {
   it("text with same variable twice") {
     validate(
       Query("select * from users").
-        text("users.email", Some("mike@flow.io")).
-        text("EMAIL", Some("paolo@flow.io")),
+        text("users.email", "mike@flow.io").
+        text("EMAIL", "paolo@flow.io"),
       "select * from users where users.email = trim({email}) and EMAIL = trim({email2})",
       "select * from users where users.email = trim('mike@flow.io') and EMAIL = trim('paolo@flow.io')"
     )
   }
 
-  it("condition") {
+  it("and") {
     validate(
-      Query("select * from users").condition(None),
+      Query("select * from users").and(None),
       "select * from users",
       "select * from users"
     )
 
     validate(
-      Query("select * from users").condition(Some("email is not null")),
+      Query("select * from users").and(Some("email is not null")),
       "select * from users where email is not null",
       "select * from users where email is not null"
     )
+
+    validate(
+      Query("select * from users").and(Seq("email is not null", "name is not null")),
+      "select * from users where email is not null and name is not null",
+      "select * from users where email is not null and name is not null"
+    )
   }
 
+  it("or") {
+    validate(
+      Query("select * from users").or(None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").or(Some("email is not null")),
+      "select * from users where email is not null",
+      "select * from users where email is not null"
+    )
+
+    validate(
+      Query("select * from users").or(Seq("email is not null", "name is not null")),
+      "select * from users where (email is not null or name is not null)",
+      "select * from users where (email is not null or name is not null)"
+    )
+  }
+  
   it("bind") {
     validate(
       Query("select * from users").bind("test", None),
@@ -210,7 +255,7 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       Query("select * from users").
-        condition(Some("email = {email}")).
+        and("email = {email}").
         bind("email", Some("mike@flow.io")),
       "select * from users where email = {email}",
       "select * from users where email = 'mike@flow.io'"
@@ -286,26 +331,6 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("subquery") {
-    validate(
-      Query("select * from users").
-        subquery("users.id", "group_id", None, { bindVar =>
-          s"select user_id from memberships where group_id = ${bindVar.sql}"
-        }),
-      "select * from users",
-      "select * from users"
-    )
-
-    validate(
-      Query("select * from users").
-        subquery("users.id", "group_id", Some(5), { bindVar =>
-          s"select user_id from memberships where group_id = ${bindVar.sql}"
-        }),
-      "select * from users where users.id in (select user_id from memberships where group_id = {group_id}::numeric)",
-      "select * from users where users.id in (select user_id from memberships where group_id = 5)"
-    )
-  }
-
   it("orderBy") {
     validate(
       Query("select * from users").
@@ -332,13 +357,7 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("limit") {
     validate(
-      Query("select * from users").limit(None),
-      "select * from users",
-      "select * from users"
-    )
-
-    validate(
-      Query("select * from users").limit(Some(5)),
+      Query("select * from users").limit(5),
       "select * from users limit 5",
       "select * from users limit 5"
     )
@@ -346,13 +365,7 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("offset") {
     validate(
-      Query("select * from users").offset(None),
-      "select * from users",
-      "select * from users"
-    )
-
-    validate(
-      Query("select * from users").offset(Some(5)),
+      Query("select * from users").offset(5),
       "select * from users offset 5",
       "select * from users offset 5"
     )
