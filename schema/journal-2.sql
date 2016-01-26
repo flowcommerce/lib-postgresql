@@ -224,11 +224,53 @@ begin
     execute 'alter table ' || v_journal_name || ' add journal_id bigserial primary key ';
     execute 'comment on table ' || v_journal_name || ' is ''Created by plsql function refresh_journaling to shadow all inserts and updates on the table ' || p_source_schema_name || '.' || p_source_table_name || '''';
     perform journal.add_primary_key_data(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
+    perform journal.create_prevent_update_trigger(p_target_schema_name, p_target_table_name);
+    perform journal.create_prevent_delete_trigger(p_target_schema_name, p_target_table_name);
   end if;
 
   perform journal.refresh_journal_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
 
   return v_journal_name;
 
+end;
+$$;
+
+create or replace function create_prevent_delete_trigger(p_schema_name character varying, p_table_name character varying) returns character varying
+  language plpgsql
+  as $$
+declare
+  v_name varchar;
+begin
+  v_name = p_table_name || '_prevent_delete_trigger';
+  execute 'create trigger ' || v_name || ' before delete on ' || p_schema_name || '.' || p_table_name || ' for each row execute procedure journal.prevent_delete()';
+  return v_name;
+end;
+$$;
+
+create or replace function prevent_delete() returns trigger
+  language plpgsql
+  as $$
+begin
+  raise exception 'Physical deletes are not allowed on this table';
+end;
+$$;
+
+create or replace function create_prevent_update_trigger(p_schema_name character varying, p_table_name character varying) returns character varying
+  language plpgsql
+  as $$
+declare
+  v_name varchar;
+begin
+  v_name = p_table_name || '_prevent_updaate_trigger';
+  execute 'create trigger ' || v_name || ' before update on ' || p_schema_name || '.' || p_table_name || ' for each row execute procedure journal.prevent_update()';
+  return v_name;
+end;
+$$;
+
+create or replace function prevent_update() returns trigger
+  language plpgsql
+  as $$
+begin
+  raise exception 'Physical updates are not allowed on this table';
 end;
 $$;
