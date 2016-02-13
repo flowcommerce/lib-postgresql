@@ -13,7 +13,7 @@ object Pager {
     *        publication = Some(Publication.DailySummary),
     *        offset = offset
     *      )
-    *    }.map { subscription =>
+    *    }.foreach { subscription =>
     *      println("subscription: " + subscription)
     *    }
     */
