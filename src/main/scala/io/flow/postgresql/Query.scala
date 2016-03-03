@@ -428,9 +428,22 @@ case class Query(
   private[this] def uniqueBindName(name: String): String = {
     val idx = name.lastIndexOf(".")
     val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
-    bind.find(_.name == simpleName) match {
-      case Some(_) => uniqueBindName(s"${simpleName}${bind.size + 1}")
-      case None => simpleName
+
+    // when creating bind variables for columns querying JSON fields, special characters must be stripped
+    // to prevent this exception [PSQLException: ERROR: syntax error at end of input]
+    // ex: table_name.column_name->>'json_field'
+    val json = """(^.*\->>'.*'$)""".r
+
+    // translate "->>'<json_field>'" to "_<json_field>"
+    val translatedName =
+      simpleName match {
+        case json(bindName) => bindName.replace("'", "").replaceFirst("->>", "_")
+        case _ => simpleName
+      }
+
+    bind.find(_.name == translatedName) match {
+      case Some(_) => uniqueBindName(s"${translatedName}${bind.size + 1}")
+      case None => translatedName
     }
   }
 

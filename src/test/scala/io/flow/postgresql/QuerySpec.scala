@@ -116,6 +116,12 @@ class QuerySpec extends FunSpec with Matchers {
       "select * from users where users.email in ({email}, {email2})",
       "select * from users where users.email in ('mike@flow.io', 'paolo@flow.io')"
     )
+
+    validate(
+      Query("select * from users").in("table.json->>'jsonfield'", Seq("jsonvalue")),
+      "select * from users where table.json->>'jsonfield' in ({json_jsonfield})",
+      "select * from users where table.json->>'jsonfield' in ('jsonvalue')"
+    )
   }
 
   it("in with uuid") {
