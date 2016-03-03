@@ -377,14 +377,20 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("debug simple query") {
-    Query("select * from users").debug() should be("select * from users")
+  it("debuggingInfo simple query") {
+    Query("select * from users").debuggingInfo() should be("select * from users")
   }
 
-  it("debug query w/ bind vars") {
+  it("debuggingInfo query w/ bind vars") {
     val q = Query("select * from users").equals("id", Some(5))
-    q.debug() should be("select * from users where id = 5")
-    q.debug(Debug.Raw) should be("select * from users where id = {id}::numeric\n - id: 5")
+    q.debuggingInfo() should be(
+      Seq(
+        "select * from users where id = {id}::numeric",
+        " - id: 5",
+        "Interpolated:",
+        "select * from users where id = 5"
+      ).mkString("\n")
+    )
   }
 
 }
