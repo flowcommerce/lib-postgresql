@@ -84,6 +84,14 @@ object Query {
 
 }
 
+sealed trait Debug
+
+object Debug {
+  case object None extends Debug
+  case object Interpolate extends Debug
+  case object Raw extends Debug
+}
+
 case class Query(
   base: String,
   conditions: Seq[String] = Nil,
@@ -91,7 +99,7 @@ case class Query(
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
-  debug: Boolean = false
+  debug: Debug = Debug.None
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -389,8 +397,13 @@ case class Query(
   /**
    * Turns on debugging of this query.
    */
-  def withDebugging(): Query = {
-    this.copy(debug = true)
+  def withDebugging(interpolate: Boolean = true): Query = {
+    this.copy(
+      debug = interpolate match {
+        case true => Debug.Interpolate
+        case false => Debug.Raw
+      }
+    )
   }
 
   /**
@@ -422,11 +435,31 @@ case class Query(
   }
 
   /**
+    * Returns debugging information about this query
+    */
+  def debug(debug: Debug = Debug.Interpolate): String = {
+    debug match {
+      case Debug.None => {
+        sys.error("Cannot call debug with Debug.None")
+      }
+
+      case Debug.Interpolate => {
+        interpolate
+      }
+
+      case Debug.Raw => {
+        (Seq(sql) ++ bind.map { bv => s" - ${bv.name}: ${bv.value}" }).mkString("\n")
+      }
+    }
+  }
+
+  /**
     * Prepares the sql query for anorm, including any bind variables.
     */
   def anormSql(): anorm.SimpleSql[anorm.Row] = {
-    if (debug) {
-      println(interpolate)
+    debug match {
+      case Debug.None => // No-op
+      case Debug.Interpolate | Debug.Raw => println(debug(debug))
     }
     SQL(sql).on(bind.map(_.toNamedParameter): _*)
   }
