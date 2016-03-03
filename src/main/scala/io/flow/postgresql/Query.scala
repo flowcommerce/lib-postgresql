@@ -29,6 +29,31 @@ object BindVariable {
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
+  private[this] val LeadingUnderscores = """^_+""".r
+  private[this] val MultiUnderscores = """__+""".r
+  private[this] val TrailingUnderscores = """_+$""".r
+  private[this] val ScrubName = """[^\w\d\_]""".r
+
+  def safeName(name: String): String = {
+    val idx = name.lastIndexOf(".")
+    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
+
+    val safeName = LeadingUnderscores.replaceAllIn(
+      TrailingUnderscores.replaceAllIn(
+        MultiUnderscores.replaceAllIn(
+          ScrubName.replaceAllIn(simpleName.trim, "_"),
+          "_"
+        ),
+        ""),
+      ""
+    )
+
+    safeName match {
+      case "" => "bind"
+      case _ => safeName
+    }
+  }
+
 }
 
 object Query {
@@ -69,8 +94,6 @@ case class Query(
   debug: Boolean = false
 ) {
 
-  private[this] val JSONFIELD = """(^.*\->>'.*'$)""".r
-  
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
 
@@ -428,22 +451,11 @@ case class Query(
     *             otherwise we generate a unique version.
     */
   private[this] def uniqueBindName(name: String): String = {
-    val idx = name.lastIndexOf(".")
-    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
+    val safeName = BindVariable.safeName(name)
 
-    // when creating bind variables for columns querying JSON fields, special characters must be stripped
-    // to prevent this exception [PSQLException: ERROR: syntax error at end of input]
-    // ex: table_name.column_name->>'json_field'
-    // translate "->>'<json_field>'" to "_<json_field>"
-    val translatedName =
-      simpleName match {
-        case JSONFIELD(bindName) => bindName.replace("'", "").replaceFirst("->>", "_")
-        case _ => simpleName
-      }
-
-    bind.find(_.name == translatedName) match {
-      case Some(_) => uniqueBindName(s"${translatedName}${bind.size + 1}")
-      case None => translatedName
+    bind.find(_.name == safeName) match {
+      case Some(_) => uniqueBindName(s"${safeName}${bind.size + 1}")
+      case None => safeName
     }
   }
 
