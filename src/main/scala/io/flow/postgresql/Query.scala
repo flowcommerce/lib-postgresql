@@ -84,13 +84,6 @@ object Query {
 
 }
 
-sealed trait Debug
-
-object Debug {
-  case object Interpolate extends Debug
-  case object Raw extends Debug
-}
-
 case class Query(
   base: String,
   conditions: Seq[String] = Nil,
@@ -98,7 +91,7 @@ case class Query(
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
-  debug: Option[Debug] = None
+  debug: Boolean = false
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -396,14 +389,9 @@ case class Query(
   /**
    * Turns on debugging of this query.
    */
-  def withDebugging(interpolate: Boolean = true): Query = {
+  def withDebugging(): Query = {
     this.copy(
-      debug = Some(
-        interpolate match {
-          case true => Debug.Interpolate
-          case false => Debug.Raw
-        }
-      )
+      debug = true
     )
   }
 
@@ -438,15 +426,16 @@ case class Query(
   /**
     * Returns debugging information about this query
     */
-  def debug(debug: Debug = Debug.Interpolate): String = {
-    debug match {
-      case Debug.Interpolate => {
+  def debuggingInfo(): String = {
+    if (bind.isEmpty) {
+      interpolate
+    } else {
+      Seq(
+        sql,
+        bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        "Interpolated:",
         interpolate
-      }
-
-      case Debug.Raw => {
-        (Seq(sql) ++ bind.map { bv => s" - ${bv.name}: ${bv.value}" }).mkString("\n")
-      }
+      ).mkString("\n")
     }
   }
 
@@ -454,8 +443,8 @@ case class Query(
     * Prepares the sql query for anorm, including any bind variables.
     */
   def anormSql(): anorm.SimpleSql[anorm.Row] = {
-    debug.foreach { d =>
-      println(debug(d))
+    if (debug) {
+      println(debuggingInfo())
     }
     SQL(sql).on(bind.map(_.toNamedParameter): _*)
   }
