@@ -69,6 +69,8 @@ case class Query(
   debug: Boolean = false
 ) {
 
+  private[this] val JSONFIELD = """(^.*\->>'.*'$)""".r
+  
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
 
@@ -432,12 +434,10 @@ case class Query(
     // when creating bind variables for columns querying JSON fields, special characters must be stripped
     // to prevent this exception [PSQLException: ERROR: syntax error at end of input]
     // ex: table_name.column_name->>'json_field'
-    val json = """(^.*\->>'.*'$)""".r
-
     // translate "->>'<json_field>'" to "_<json_field>"
     val translatedName =
       simpleName match {
-        case json(bindName) => bindName.replace("'", "").replaceFirst("->>", "_")
+        case JSONFIELD(bindName) => bindName.replace("'", "").replaceFirst("->>", "_")
         case _ => simpleName
       }
 
