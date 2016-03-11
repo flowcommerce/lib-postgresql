@@ -6,8 +6,8 @@ Libraries supporting postgresql at flow
 
 to install:
 
-    cd <yourproject>/schema
-    /web/lib-postgresql/schema/install
+    cd <yourproject>-postgresql
+    ../lib-postgresql/schema/install
 
 then git commit and push. This will create a single SQL script
 providing the audit, journal, and util namespaces.
@@ -31,3 +31,16 @@ To see what this has created:
     \d journal.organizations
 
 This library uses the https://github.com/gilt/db-journaling library under the hood.
+
+## Docker
+
+To enable Docker:
+
+    cd <yourproject>-postgresql
+    cp ../docker/templates/postgresql/Dockerfile .
+    cp ../docker/templates/postgresql/install.sh .
+
+Then edit install.sh, replacing <NAME> with the name of your project.
+
+    git add install.sh Dockerfile
+    git commit -m "Add Dockerfile"
