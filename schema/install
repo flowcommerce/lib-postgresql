@@ -8,9 +8,9 @@ if !File.directory?("scripts")
    exit(1)
 end
 
-def assert_installed(cmd, url)
-  if !system("which %s > /dev/null" % cmd)
-    puts "** ERROR: Please install %s: %s" % [cmd, url]
+def assert(cmd, msg)
+  if !system("%s > /dev/null" % cmd)
+    puts "** ERROR: %s" % msg
     exit(1)
   end
 end
@@ -41,7 +41,8 @@ end
 
 HEADER = "-- File created automatically by #{format(__FILE__)}"
 
-assert_installed("sem-add", "https://github.com/mbryzek/schema-evolution-manager")
+assert("git status", "Not a git repository. This script must be run from a directory that has been initialized with git.")
+assert("sem-info tag latest", "Please install sem. See https://github.com/mbryzek/schema-evolution-manager")
 
 dir = File.dirname(__FILE__)
 tmp = "lib-postgresql-schema-tmp.sql"
