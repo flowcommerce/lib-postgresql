@@ -91,7 +91,8 @@ case class Query(
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
-  debug: Boolean = false
+  debug: Boolean = false,
+  groupBy: Seq[String] = Nil
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -186,7 +187,7 @@ case class Query(
       }
     }
   }
-  
+
   def or(
     clauses: Seq[String]
   ): Query = {
@@ -211,7 +212,7 @@ case class Query(
   ): Query = {
     and(clause)
   }
-  
+
   def and(
     clauses: Seq[String]
   ): Query = {
@@ -232,7 +233,7 @@ case class Query(
       case Some(v) => and(v)
     }
   }
-  
+
   /**
     * Adds a bind variable to this query. You will receive a runtime
     * error if this bind variable is already defined.
@@ -290,7 +291,7 @@ case class Query(
       valueFunctions = valueFunctions
     )
   }
-  
+
   def boolean(column: String, value: Option[Boolean]): Query = {
     value match {
       case None => this
@@ -306,7 +307,7 @@ case class Query(
       }
     )
   }
-  
+
   def isNull(column: String): Query = {
     and(s"$column is null")
   }
@@ -329,6 +330,17 @@ case class Query(
         case false => s"$column is null"
       }
     )
+  }
+
+  def groupBy(value: Option[String]): Query ={
+    value match {
+      case None => this
+      case Some(v) => groupBy(v)
+    }
+  }
+
+  def groupBy(value: String): Query = {
+    this.copy(groupBy = groupBy ++ Seq(value))
   }
 
   def orderBy(value: Option[String]): Query = {
@@ -377,6 +389,10 @@ case class Query(
 
     Seq(
       Some(query),
+      groupBy match {
+        case Nil => None
+        case clauses => Some("group by " + clauses.mkString(", "))
+      },
       orderBy match {
         case Nil => None
         case clauses => Some("order by " + clauses.mkString(", "))
@@ -464,7 +480,7 @@ case class Query(
 
   /**
     * Generates a unique bind variable name from the specified input
-    * 
+    *
     * @param name Preferred name of bind variable - will be used if unique,
     *             otherwise we generate a unique version.
     */

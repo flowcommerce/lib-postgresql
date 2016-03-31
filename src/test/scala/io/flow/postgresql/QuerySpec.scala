@@ -251,7 +251,7 @@ class QuerySpec extends FunSpec with Matchers {
       "select * from users where (email is not null or name is not null)"
     )
   }
-  
+
   it("bind") {
     validate(
       Query("select * from users").bind("test", None),
@@ -334,6 +334,42 @@ class QuerySpec extends FunSpec with Matchers {
       Query("select * from users").isNotNull("users.email"),
       "select * from users where users.email is not null",
       "select * from users where users.email is not null"
+    )
+  }
+
+  it("groupBy and orderBy") {
+    validate(
+      Query("select * from users").
+        orderBy(Some("users.y")).
+        orderBy(Some("users.x")).
+        groupBy(Some("users.id")).
+        groupBy(Some("users.name")),
+      "select * from users group by users.id, users.name order by users.y, users.x",
+      "select * from users group by users.id, users.name order by users.y, users.x"
+    )
+  }
+
+  it("groupBy") {
+    validate(
+      Query("select * from users").
+        groupBy(None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").
+        groupBy(Some("users.id")),
+      "select * from users group by users.id",
+      "select * from users group by users.id"
+    )
+
+    validate(
+      Query("select * from users").
+        groupBy(Some("users.id")).
+        groupBy(Some("users.name")),
+      "select * from users group by users.id, users.name",
+      "select * from users group by users.id, users.name"
     )
   }
 
