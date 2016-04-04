@@ -479,7 +479,10 @@ case class Query(
 
   private[this] def withFunctions(name: String, options: Seq[Query.Function]): String = {
     options.reverse.foldLeft(name) { case (value, option) =>
-      s"${option}($value)"
+      if (option.toString == "array")
+        s"$option[$value]"
+      else
+        s"$option($value)"
     }
   }
 
