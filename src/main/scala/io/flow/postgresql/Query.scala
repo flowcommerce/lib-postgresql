@@ -129,7 +129,7 @@ case class Query(
     )
   }
 
-  private[this] def optionalOperation[T](
+  def optionalOperation[T](
     column: String,
     operator: String,
     value: Option[T],
