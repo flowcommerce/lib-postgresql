@@ -86,7 +86,7 @@ $$;
 
 create or replace function null_or_currency_code(p_value text) returns boolean immutable cost 1 language plpgsql as $$
   begin
-    if p_value is null or currency_code(p_value) then
+    if p_value is null or util.currency_code(p_value) then
       return true;
     else
       return false;
@@ -106,7 +106,7 @@ $$;
 
 create or replace function null_or_country_code(p_value text) returns boolean immutable cost 1 language plpgsql as $$
   begin
-    if p_value is null or country_code(p_value) then
+    if p_value is null or util.country_code(p_value) then
       return true;
     else
       return false;
@@ -126,7 +126,7 @@ $$;
 
 create or replace function null_or_language_code(p_value text) returns boolean immutable cost 1 language plpgsql as $$
   begin
-    if p_value is null or language_code(p_value) then
+    if p_value is null or util.language_code(p_value) then
       return true;
     else
       return false;
