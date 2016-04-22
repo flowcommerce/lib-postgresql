@@ -143,3 +143,23 @@ create or replace function language_code(p_value text) returns boolean immutable
     end if;
   end
 $$;
+
+create or replace function null_or_organization(p_value text) returns boolean immutable cost 1 language plpgsql as $$
+  begin
+    if p_value is null or util.organization(p_value) then
+      return true;
+    else
+      return false;
+    end if;
+  end
+$$;
+
+create or replace function organization(p_value text) returns boolean immutable cost 1 language plpgsql as $$
+  begin
+    if lower(trim(p_value)) = p_value then
+      return true;
+    else
+      return false;
+    end if;
+  end
+$$;
