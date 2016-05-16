@@ -11,7 +11,7 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
-  val ValidFunctions = Seq("lower")
+  val ValidFunctions = Seq("lower", "json")
 
   def parse(
     value: String,
@@ -83,7 +83,15 @@ object OrderBy {
       case FunctionRegexp(function, column) => {
         ValidFunctions.contains(function) match {
           case false => Left(s"$value: Invalid function[$function]. Must be one of: " + ValidFunctions.mkString(", "))
-          case true => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+          case true =>
+            function match {
+              case "json" =>
+                withJson(column) match {
+                  case Right(query) => Right(Clause(direction, query))
+                  case Left(error) => Left(error)
+                }
+              case _ => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+            }
         }
       }
       case _ => {
@@ -107,6 +115,16 @@ object OrderBy {
           s"${table}.$column"
         }
       }
+    }
+  }
+
+  private[this] def withJson(
+   path: String
+  ): Either[String, String] = {
+    path.split("\\.") match {
+      case Array(column, parent, field) => Right(s"(${column.toString}->>'${parent.toString}')::jsonb->'${field.toString}'")
+      case Array(column, field) => Right(s"$column->>'$field'")
+      case _ =>  Left(s"Error defining json query column[$path]: Must be column.field[.field]")
     }
   }
 
