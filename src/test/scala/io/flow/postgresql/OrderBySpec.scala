@@ -46,6 +46,17 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy("+lower(projects.key)", Some("organizations")).sql.get should be("lower(projects.key)")
   }
 
+  it("function with json field") {
+    OrderBy("json(data.name)", None).sql.get should be("data->>'name'")
+    OrderBy("-json(data.name)", None).sql.get should be("data->>'name' desc")
+    OrderBy("json(data.price.amount)", None).sql.get should be("(data->>'price')::jsonb->'amount'")
+    OrderBy("-json(data.price.amount)", None).sql.get should be("(data->>'price')::jsonb->'amount' desc")
+  }
+
+  it("rejects invalid json function") {
+    OrderBy.parse("json(foo)", None) should be(Left(Seq("Error defining json query column[foo]: Must be column.field[.field]")))
+  }
+
   it("composite") {
     OrderBy("-lower(projects.key),created_at", Some("organizations")).sql.get should be(
       "lower(projects.key) desc, organizations.created_at"
@@ -59,12 +70,12 @@ class OrderBySpec extends FunSpec with Matchers {
   }
 
   it("rejects invalid function") {
-    OrderBy.parse("foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower")))
-    OrderBy.parse("key,foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower")))
+    OrderBy.parse("foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower, json")))
+    OrderBy.parse("key,foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower, json")))
     OrderBy.parse("key,foo(key),bar(key)") should be(Left(
       Seq(
-        "foo(key): Invalid function[foo]. Must be one of: lower",
-        "bar(key): Invalid function[bar]. Must be one of: lower"
+        "foo(key): Invalid function[foo]. Must be one of: lower, json",
+        "bar(key): Invalid function[bar]. Must be one of: lower, json"
       )
     ))
   }
