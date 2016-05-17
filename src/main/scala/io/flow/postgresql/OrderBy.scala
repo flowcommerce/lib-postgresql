@@ -90,7 +90,8 @@ object OrderBy {
                   case Right(query) => Right(Clause(direction, query))
                   case Left(error) => Left(error)
                 }
-              case _ => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+              case "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+              case _ => sys.error(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
             }
         }
       }
