@@ -4,7 +4,7 @@
 name = ARGV.shift.to_s
 
 if !File.directory?("scripts")
-   puts "** ERROR: Run script from the scripts directory of your project"
+   puts "** ERROR: Create scripts directory in your project"
    exit(1)
 end
 
