@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/flowcommerce/api-lint.svg?branch=master](https://travis-ci.org/flowcommerce/api-lint)
+
 # lib-postgresql
 
 Libraries supporting postgresql at flow
