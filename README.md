@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/flowcommerce/api-lint.svg?branch=master](https://travis-ci.org/flowcommerce/api-lint)
+[![Build Status](https://travis-ci.org/flowcommerce/lib-postgresql.svg?branch=master](https://travis-ci.org/flowcommerce/lib-postgresql)
 
 # lib-postgresql
 
