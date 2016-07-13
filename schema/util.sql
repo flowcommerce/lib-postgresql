@@ -163,3 +163,23 @@ create or replace function organization_id(p_value text) returns boolean immutab
     end if;
   end
 $$;
+
+create or replace function null_or_region_id(p_value text) returns boolean immutable cost 1 language plpgsql as $$
+  begin
+    if p_value is null or util.region_id(p_value) then
+      return true;
+    else
+      return false;
+    end if;
+  end
+$$;
+
+create or replace function region_id(p_value text) returns boolean immutable cost 1 language plpgsql as $$
+  begin
+    if lower(trim(p_value)) = p_value and length(p_value) >= 3 then
+      return true;
+    else
+      return false;
+    end if;
+  end
+$$;
