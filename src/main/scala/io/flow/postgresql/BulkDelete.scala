@@ -29,7 +29,7 @@ object BulkDelete {
       deleteFunction(r)
     }
 
-    if (!results.isEmpty) {
+    if (f.nonEmpty) {
       byPage(f)(deleteFunction)
     }
   }
