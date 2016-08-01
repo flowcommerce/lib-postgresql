@@ -24,13 +24,14 @@ object Pager {
       override def page(offset: Long): Iterable[T] = f(offset)
     }
   }
+
 }
 
 object DeletionPager {
+
   /**
     * Helper to create a deletion pager to paginate over objects that are being deleted.
-    * An offset cannot be used as the number of pages may vary depending on object deletions.
-    * Object types are inferred from the function returning each page of results.
+    * Ends when there are no more records to delete
     *
     * Example:
     *
@@ -38,15 +39,15 @@ object DeletionPager {
     *      SubscriptionsDao.findAll(
     *        publication = Some(Publication.DailySummary)
     *      )
-    *    }.foreach { subscription =>
-    *      delete(deletedBy, subscription)
+    *    } { subscription =>
+    *      SubscriptionsDao.delete(deletedBy, subscription)
     *    }
     */
   def create[T](
     f: Iterable[T]
   ): DeletionPager[T] = {
     new DeletionPager[T] {
-      override def page: Iterable[T] = f
+      override def page(): Iterable[T] = f
     }
   }
 
@@ -68,9 +69,9 @@ trait Pager[T] extends Iterator[T] {
 
   /**
     * Returns the next page of results starting at the specified
-    * offset
+    * offset. Iteration will stop if no records are returned.
     */
-  def page(offset: Long): Iterable[T] = ???
+  def page(offset: Long): Iterable[T]
 
   def hasNext: Boolean = !nextResult.isEmpty
 
@@ -103,11 +104,14 @@ trait Pager[T] extends Iterator[T] {
   * Trait that enables us to iterate over a large number of results
   * (e.g. from a database query) one page at a time while deleting the results
   */
-trait DeletionPager[T] extends Iterator[T] with Pager[T] {
+trait DeletionPager[T] extends Pager[T] {
 
   /**
-    * Returns the next page of results starting at the specified
+    * Returns the next page of results to delete. Iteration will stop
+    * if no records are returned.
     */
-  def page: Iterable[T]
+  def page(): Iterable[T]
+
+  final def page(offset: Long): Iterable[T] = page()
 
 }
