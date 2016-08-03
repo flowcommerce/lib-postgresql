@@ -101,26 +101,26 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       Query("select * from users").in("email", Seq("mike@flow.io")),
-      "select * from users where email in ({email})",
-      "select * from users where email in ('mike@flow.io')"
+      "select * from users where email in (trim({email}))",
+      "select * from users where email in (trim('mike@flow.io'))"
     )
 
     validate(
       Query("select * from users").in("email", Seq("mike@flow.io", "paolo@flow.io")),
-      "select * from users where email in ({email}, {email2})",
-      "select * from users where email in ('mike@flow.io', 'paolo@flow.io')"
+      "select * from users where email in (trim({email}), trim({email2}))",
+      "select * from users where email in (trim('mike@flow.io'), trim('paolo@flow.io'))"
     )
 
     validate(
       Query("select * from users").in("users.email", Seq("mike@flow.io", "paolo@flow.io")),
-      "select * from users where users.email in ({email}, {email2})",
-      "select * from users where users.email in ('mike@flow.io', 'paolo@flow.io')"
+      "select * from users where users.email in (trim({email}), trim({email2}))",
+      "select * from users where users.email in (trim('mike@flow.io'), trim('paolo@flow.io'))"
     )
 
     validate(
       Query("select * from users").in("table.json->>'jsonfield'", Seq("jsonvalue")),
-      "select * from users where table.json->>'jsonfield' in ({json_jsonfield})",
-      "select * from users where table.json->>'jsonfield' in ('jsonvalue')"
+      "select * from users where table.json->>'jsonfield' in (trim({json_jsonfield}))",
+      "select * from users where table.json->>'jsonfield' in (trim('jsonvalue'))"
     )
   }
 
@@ -416,8 +416,8 @@ class QuerySpec extends FunSpec with Matchers {
   it("json array") {
     validate(
       Query("select * from users").operation("table.json::jsonb", "?|", "value", valueFunctions = Seq(Query.Function.Custom("array"))),
-      "select * from users where table.json::jsonb ?| array[{json_jsonb}]",
-      "select * from users where table.json::jsonb ?| array['value']"
+      "select * from users where table.json::jsonb ?| array[trim({json_jsonb})]",
+      "select * from users where table.json::jsonb ?| array[trim('value')]"
     )
   }
 

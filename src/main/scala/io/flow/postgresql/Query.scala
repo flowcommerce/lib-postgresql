@@ -6,6 +6,7 @@ import java.util.UUID
 trait BindVariable {
 
   def name: String
+  def functions: Seq[Query.Function]
   def value: Any
   def sql: String
   def toNamedParameter(): NamedParameter
@@ -16,16 +17,19 @@ object BindVariable {
 
   case class Num(override val name: String, override val value: Number) extends BindVariable {
     override val sql = s"{$name}::numeric"
+    override val functions = Nil
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
   case class Str(override val name: String, override val value: String) extends BindVariable {
     override val sql = s"{$name}"
+    override val functions = Seq(Query.Function.Trim)
     override def toNamedParameter() = NamedParameter(name, value)
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
     override val sql = s"{$name}::uuid"
+    override val functions = Nil
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
@@ -122,7 +126,7 @@ case class Query(
   ): Query = {
     val bindVar = toBindVariable(uniqueBindName(column), value)
     val exprColumn = withFunctions(column, columnFunctions)
-    val exprValue = withFunctions(bindVar.sql, valueFunctions)
+    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions)
 
     this.copy(
       conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
@@ -176,8 +180,8 @@ case class Query(
         val exprColumn = withFunctions(column, columnFunctions)
 
         val cond = s"$exprColumn in (%s)".format(
-          bindVariables.map(_.sql).map { v =>
-            withFunctions(v, valueFunctions)
+          bindVariables.map { bindVar =>
+            withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions)
           }.mkString(", ")
         )
         this.copy(
@@ -494,7 +498,7 @@ case class Query(
   }
 
   private[this] def withFunctions(name: String, options: Seq[Query.Function]): String = {
-    options.reverse.foldLeft(name) { case (value, option) =>
+    options.distinct.reverse.foldLeft(name) { case (value, option) =>
       if (option.toString == "array")
         s"$option[$value]"
       else
