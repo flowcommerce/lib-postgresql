@@ -9,7 +9,7 @@ object BulkDelete {
     * 
     * Example:
     * 
-    *    BulkDelete.create {
+    *    BulkDelete.byPage {
     *      subscriptionsDao.findAll(
     *        publication = Some(Publication.DailySummary)
     *      )
