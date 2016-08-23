@@ -19,7 +19,7 @@ begin
   v_queue_table_name = p_queue_schema_name || '.' || coalesce(p_queue_table_name, p_table_name);
   v_source_name = p_schema_name || '.' || p_table_name;
 
-  v_sql = 'create table ' || v_queue_table_name || '(journal_id bigint primary key, created_at timestamptz default now() not null, processed_at timestamptz)';
+  v_sql = 'create table ' || v_queue_table_name || '(journal_id bigint primary key, created_at timestamptz default now() not null, processed_at timestamptz, error text)';
   execute v_sql;
 
   v_sql = 'create index on ' || v_queue_table_name || '(journal_id) where processed_at is null';
