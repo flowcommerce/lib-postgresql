@@ -261,7 +261,7 @@ create or replace function create_prevent_update_trigger(p_schema_name character
 declare
   v_name varchar;
 begin
-  v_name = p_table_name || '_prevent_updaate_trigger';
+  v_name = p_table_name || '_prevent_update_trigger';
   execute 'create trigger ' || v_name || ' before update on ' || p_schema_name || '.' || p_table_name || ' for each row execute procedure journal.prevent_update()';
   return v_name;
 end;
