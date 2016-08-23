@@ -41,6 +41,18 @@ begin
 end;
 $$;
 
+create or replace function journal.create_prevent_update_trigger(p_schema_name character varying, p_table_name character varying) returns character varying
+  language plpgsql
+  as $$
+declare
+  v_name varchar;
+begin
+  v_name = p_table_name || '_prevent_update_trigger';
+  execute 'create trigger ' || v_name || ' before update on ' || p_schema_name || '.' || p_table_name || ' for each row execute procedure journal.prevent_update()';
+  return v_name;
+end;
+$$;
+
 
 create schema queue;
 set search_path to queue;
