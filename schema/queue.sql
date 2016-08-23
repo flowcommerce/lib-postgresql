@@ -26,6 +26,13 @@ begin
   execute v_sql;
 
 
+  perform partman.create_parent(v_queue_table_name, 'created_at', 'time', 'daily');
+  update partman.part_config
+     set retention = '1 week',
+         retention_keep_table = false,
+         retention_keep_index = false
+   where parent_table in (v_queue_table_name);
+
   v_procedure_name = p_queue_schema_name || '.' || p_table_name || '_queue_insert';
   v_trigger_name = p_table_name || '_queue_insert_trigger';
 
