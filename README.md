@@ -51,7 +51,7 @@ select queue.create_queue('journal', 'catalogs', 'journal_queue', 'catalogs');
 
 insert into public.catalogs(id, organization_id, updated_by_user_id) values ('test', 'test-org', '1');
 update public.catalogs set organization_id='test-org-2' where id = 'test';
-delete from public.catalogs where id = 'test';
+select util.delete_by_id('1', 'public.catalogs', 'test');
 
 select * from journal.catalogs;
 select * from journal_queue.catalogs;
