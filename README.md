@@ -34,6 +34,29 @@ To see what this has created:
 
 This library uses the https://github.com/gilt/db-journaling library under the hood.
 
+## Queue
+
+You can create a a table to queue records for later processing:
+
+```
+select queue.create_queue('journal', 'catalogs', 'journal_queue', 'catalogs');
+```
+
+Example:
+
+```
+drop schema journal_queue cascade;
+create schema journal_queue;
+select queue.create_queue('journal', 'catalogs', 'journal_queue', 'catalogs');
+
+insert into public.catalogs(id, organization_id, updated_by_user_id) values ('test', 'test-org', '1');
+update public.catalogs set organization_id='test-org-2' where id = 'test';
+delete from public.catalogs where id = 'test';
+
+select * from journal.catalogs;
+select * from journal_queue.catalogs;
+```
+
 ## Docker
 
 To enable Docker:
