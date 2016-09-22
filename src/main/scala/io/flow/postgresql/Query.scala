@@ -105,6 +105,9 @@ case class Query(
   def notEquals[T](column: String, value: Option[T]): Query = optionalOperation(column, "!=", value)
   def notEquals[T](column: String, value: T): Query = operation(column, "!=", value)
 
+  def like[T](column: String, value: Option[T]): Query = optionalLikeOperation(column, "like", value)
+  def like[T](column: String, value: T): Query = operation(column, "like", s"%$value%")
+
   def lessThan[T](column: String, value: Option[T]): Query = optionalOperation(column, "<", value)
   def lessThan[T](column: String, value: T): Query = operation(column, "<", value)
 
@@ -144,6 +147,19 @@ case class Query(
     value match {
       case None => this
       case Some(v) => operation(column, operator, v, columnFunctions, valueFunctions)
+    }
+  }
+
+  def optionalLikeOperation[T](
+    column: String,
+    operator: String,
+    value: Option[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
+    value match {
+      case None => this
+      case Some(v) => operation(column, operator, s"%$v%", columnFunctions, valueFunctions)
     }
   }
 
