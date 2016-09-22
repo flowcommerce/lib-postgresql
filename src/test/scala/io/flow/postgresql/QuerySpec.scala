@@ -62,6 +62,14 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("likeOptionNone") {
+    validate(
+      Query("select * from users").like("email", None),
+      "select * from users",
+      "select * from users"
+    )
+  }
+
   it("like") {
     validate(
       Query("select * from users").like("email", "mike"),
