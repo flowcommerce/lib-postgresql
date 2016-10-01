@@ -3,7 +3,7 @@ package io.flow.postgresql
 import anorm._
 import java.util.UUID
 
-trait BindVariable {
+sealed trait BindVariable {
 
   def name: String
   def functions: Seq[Query.Function]
@@ -31,6 +31,13 @@ object BindVariable {
     override val sql = s"{$name}::uuid"
     override val functions = Nil
     override def toNamedParameter() = NamedParameter(name, value.toString)
+  }
+
+  case class Unit(override val name: String) extends BindVariable {
+    override val value = None
+    override val sql = s"{$name}"
+    override val functions = Nil
+    override def toNamedParameter() = NamedParameter(name, Option.empty[String])
   }
 
   private[this] val LeadingUnderscores = """^_+""".r
@@ -261,7 +268,7 @@ case class Query(
     value: Option[T]
   ): Query = {
     value match {
-      case None => this
+      case None => bind(name, ())
       case Some(v) => bind(name, v)
     }
   }
@@ -431,6 +438,9 @@ case class Query(
         case BindVariable.Str(_, value) => {
           query.replace(bindVar.sql, s"'$value'")
         }
+        case BindVariable.Unit(_) => {
+          query.replace(bindVar.sql, "null")
+        }
       }
     }
   }
@@ -478,6 +488,7 @@ case class Query(
       case v: UUID => BindVariable.Uuid(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
+      case v: Unit => BindVariable.Unit(name)
       case _ => BindVariable.Str(name, value.toString)
     }
   }
