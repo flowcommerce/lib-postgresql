@@ -429,8 +429,10 @@ case class Query(
   def interpolate(): String = {
     bind.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
-        case BindVariable.Num(_, value) => {
-          query.replace(bindVar.sql, value.toString)
+        case BindVariable.Num(name, value) => {
+          query.
+            replace(bindVar.sql, value.toString).
+            replace(s"{$name}", value.toString)
         }
         case BindVariable.Uuid(_, value) => {
           query.replace(bindVar.sql, s"'$value'::uuid")
