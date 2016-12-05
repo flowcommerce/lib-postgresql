@@ -276,6 +276,35 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("bind numeric") {
+    validate(
+      Query("select * from users").
+        and("age = {age}::numeric").
+        bind("age", 5l),
+      "select * from users where age = {age}::numeric",
+      "select * from users where age = 5"
+    )
+
+    validate(
+      Query("select * from users").
+        and("age = {age}").
+        bind("age", 5l),
+      "select * from users where age = {age}",
+      "select * from users where age = 5"
+    )
+  }
+
+  it("bind uuid") {
+    val guid = UUID.randomUUID
+
+    validate(
+      Query("select * from users where guid = {guid}::uuid").
+        bind("guid", guid),
+      "select * from users where guid = {guid}::uuid",
+      s"select * from users where guid = '${guid}'::uuid"
+    )
+  }
+
   it("bind with duplicate variable name raises an error") {
     Try {
       Query("select * from users").
