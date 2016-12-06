@@ -2,6 +2,7 @@ package io.flow.postgresql
 
 import scala.util.{Failure, Success, Try}
 import java.util.UUID
+import org.joda.time.DateTime
 import org.scalatest.{FunSpec, Matchers}
 
 class QuerySpec extends FunSpec with Matchers {
@@ -86,6 +87,42 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("lessThan w/ date time") {
+    val ts = DateTime.now
+    validate(
+      Query("select * from users").lessThan("created_at", Some(ts)),
+      "select * from users where created_at < {created_at}::timestamptz",
+      s"select * from users where created_at < '$ts'::timestamptz"
+    )
+  }
+
+  it("lessThanOrEquals w/ date time") {
+    val ts = DateTime.now
+    validate(
+      Query("select * from users").lessThanOrEquals("created_at", Some(ts)),
+      "select * from users where created_at <= {created_at}::timestamptz",
+      s"select * from users where created_at <= '$ts'::timestamptz"
+    )
+  }
+
+  it("greaterThan w/ date time") {
+    val ts = DateTime.now
+    validate(
+      Query("select * from users").greaterThan("created_at", Some(ts)),
+      "select * from users where created_at > {created_at}::timestamptz",
+      s"select * from users where created_at > '$ts'::timestamptz"
+    )
+  }
+
+  it("greaterThanOrEquals w/ date time") {
+    val ts = DateTime.now
+    validate(
+      Query("select * from users").greaterThanOrEquals("created_at", Some(ts)),
+      "select * from users where created_at >= {created_at}::timestamptz",
+      s"select * from users where created_at >= '$ts'::timestamptz"
+    )
+  }
+
   it("in") {
     validate(
       Query("select * from users").optionalIn("email", None),
@@ -124,12 +161,13 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("in with uuid") {
-    val guids = Seq(UUID.randomUUID, UUID.randomUUID)
+  it("in with datetime") {
+    val ts = DateTime.now
+    val values = Seq(ts, ts.plusHours(1))
     validate(
-      Query("select * from users").in("guid", guids),
-      "select * from users where guid in ({guid}::uuid, {guid2}::uuid)",
-      "select * from users where guid in " + guids.mkString("('", "'::uuid, '", "'::uuid)")
+      Query("select * from users").in("created_at", values),
+      "select * from users where created_at in ({created_at}::timestamptz, {created_at2}::timestamptz)",
+      "select * from users where created_at in " + values.mkString("('", "'::timestamptz, '", "'::timestamptz)")
     )
   }
 
@@ -176,6 +214,31 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("in with uuid") {
+    val guids = Seq(UUID.randomUUID, UUID.randomUUID)
+    validate(
+      Query("select * from users").in("guid", guids),
+      "select * from users where guid in ({guid}::uuid, {guid2}::uuid)",
+      "select * from users where guid in " + guids.mkString("('", "'::uuid, '", "'::uuid)")
+    )
+  }
+  
+
+  it("datetime") {
+    val ts = DateTime.now
+    validate(
+      Query("select * from users").equals("users.created_at", None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").equals("users.created_at", Some(ts)),
+      "select * from users where users.created_at = {created_at}::timestamptz",
+      s"select * from users where users.created_at = '$ts'::timestamptz"
+    )
+  }
+  
   it("unit") {
     validate(
       Query("insert into users (first) values ({first})").bind("first", None),

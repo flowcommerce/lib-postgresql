@@ -2,6 +2,7 @@ package io.flow.postgresql
 
 import anorm._
 import java.util.UUID
+import org.joda.time.DateTime
 
 sealed trait BindVariable {
 
@@ -33,6 +34,12 @@ object BindVariable {
     override def toNamedParameter() = NamedParameter(name, value.toString)
   }
 
+  case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable {
+    override val sql = s"{$name}::timestamptz"
+    override val functions = Nil
+    override def toNamedParameter() = NamedParameter(name, value.toString)
+  }
+  
   case class Unit(override val name: String) extends BindVariable {
     override val value = None
     override val sql = s"{$name}"
@@ -437,6 +444,9 @@ case class Query(
         case BindVariable.Uuid(_, value) => {
           query.replace(bindVar.sql, s"'$value'::uuid")
         }
+        case BindVariable.DateTimeVar(_, value) => {
+          query.replace(bindVar.sql, s"'$value'::timestamptz")
+        }
         case BindVariable.Str(_, value) => {
           query.replace(bindVar.sql, s"'$value'")
         }
@@ -488,6 +498,7 @@ case class Query(
   private[this] def toBindVariable(name: String, value: Any): BindVariable = {
     value match {
       case v: UUID => BindVariable.Uuid(name, v)
+      case v: DateTime => BindVariable.DateTimeVar(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
       case v: Unit => BindVariable.Unit(name)
