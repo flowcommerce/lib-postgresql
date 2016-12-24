@@ -80,4 +80,10 @@ class OrderBySpec extends FunSpec with Matchers {
     ))
   }
 
+  it("append") {
+    val a = OrderBy("-lower(projects.key)")
+    val combined = a.append("-created_at")
+    combined.sql should be(Some("lower(projects.key) desc, -created_at"))
+  }
+
 }

@@ -7,6 +7,14 @@ case class OrderBy(clauses: Seq[String]) {
     case multiple => Some(multiple.mkString(", "))
   }
 
+  /**
+    * Creates a new OrderBy with this clause appended
+    */
+  def append(clause: String): OrderBy = {
+    OrderBy(
+      clauses = clauses ++ Seq(clause)
+    )
+  }
 }
 
 object OrderBy {
