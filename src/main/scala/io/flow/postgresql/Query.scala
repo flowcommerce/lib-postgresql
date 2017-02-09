@@ -512,7 +512,7 @@ case class Query(
     * @param name Preferred name of bind variable - will be used if unique,
     *             otherwise we generate a unique version.
     */
-  private[this] def uniqueBindName(name: String): String = {
+  def uniqueBindName(name: String): String = {
     val safeName = BindVariable.safeName(name)
 
     bind.find(_.name == safeName) match {
