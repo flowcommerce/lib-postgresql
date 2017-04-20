@@ -55,6 +55,30 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("likeOption") {
+    validate(
+      Query("select * from users").like("email", Some("mike")),
+      "select * from users where email like trim({email})",
+      "select * from users where email like trim('%mike%')"
+    )
+  }
+
+  it("likeOptionNone") {
+    validate(
+      Query("select * from users").like("email", None),
+      "select * from users",
+      "select * from users"
+    )
+  }
+
+  it("like") {
+    validate(
+      Query("select * from users").like("email", "mike"),
+      "select * from users where email like trim({email})",
+      "select * from users where email like trim('%mike%')"
+    )
+  }
+
   it("lessThan") {
     validate(
       Query("select * from users").lessThan("id", Some(5)),
