@@ -16,6 +16,18 @@ sealed trait BindVariable {
 
 object BindVariable {
 
+  case class Int(override val name: String, override val value: Number) extends BindVariable {
+    override val sql = s"{$name}::int"
+    override val functions = Nil
+    override def toNamedParameter() = NamedParameter(name, value.toString)
+  }
+
+  case class BigInt(override val name: String, override val value: Number) extends BindVariable {
+    override val sql = s"{$name}::bigint"
+    override val functions = Nil
+    override def toNamedParameter() = NamedParameter(name, value.toString)
+  }
+
   case class Num(override val name: String, override val value: Number) extends BindVariable {
     override val sql = s"{$name}::numeric"
     override val functions = Nil
@@ -436,6 +448,16 @@ case class Query(
   def interpolate(): String = {
     bind.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
+        case BindVariable.Int(name, value) => {
+          query.
+            replace(bindVar.sql, value.toString).
+            replace(s"{$name}", value.toString)
+        }
+        case BindVariable.BigInt(name, value) => {
+          query.
+            replace(bindVar.sql, value.toString).
+            replace(s"{$name}", value.toString)
+        }
         case BindVariable.Num(name, value) => {
           query.
             replace(bindVar.sql, value.toString).
@@ -499,6 +521,8 @@ case class Query(
     value match {
       case v: UUID => BindVariable.Uuid(name, v)
       case v: DateTime => BindVariable.DateTimeVar(name, v)
+      case v: Int => BindVariable.Int(name, v)
+      case v: Long => BindVariable.BigInt(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
       case v: Unit => BindVariable.Unit(name)
