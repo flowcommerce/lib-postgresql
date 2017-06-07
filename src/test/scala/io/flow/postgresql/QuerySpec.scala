@@ -42,7 +42,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("equals") {
     validate(
       Query("select * from users").equals("id", Some(5)),
-      "select * from users where id = {id}::numeric",
+      "select * from users where id = {id}::int",
       "select * from users where id = 5"
     )
   }
@@ -50,7 +50,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("notEquals") {
     validate(
       Query("select * from users").notEquals("id", Some(5)),
-      "select * from users where id != {id}::numeric",
+      "select * from users where id != {id}::int",
       "select * from users where id != 5"
     )
   }
@@ -58,7 +58,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("lessThan") {
     validate(
       Query("select * from users").lessThan("id", Some(5)),
-      "select * from users where id < {id}::numeric",
+      "select * from users where id < {id}::int",
       "select * from users where id < 5"
     )
   }
@@ -66,7 +66,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("lessThanOrEquals") {
     validate(
       Query("select * from users").lessThanOrEquals("id", Some(5)),
-      "select * from users where id <= {id}::numeric",
+      "select * from users where id <= {id}::int",
       "select * from users where id <= 5"
     )
   }
@@ -74,7 +74,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("greaterThan") {
     validate(
       Query("select * from users").greaterThan("id", Some(5)),
-      "select * from users where id > {id}::numeric",
+      "select * from users where id > {id}::int",
       "select * from users where id > 5"
     )
   }
@@ -82,7 +82,7 @@ class QuerySpec extends FunSpec with Matchers {
   it("greaterThanOrEquals") {
     validate(
       Query("select * from users").greaterThanOrEquals("id", Some(5)),
-      "select * from users where id >= {id}::numeric",
+      "select * from users where id >= {id}::int",
       "select * from users where id >= 5"
     )
   }
@@ -194,7 +194,7 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       Query("select * from users").equals("age", Some(5)),
-      "select * from users where age = {age}::numeric",
+      "select * from users where age = {age}::int",
       "select * from users where age = 5"
     )
   }
@@ -339,12 +339,30 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("bind numeric") {
+  it("bind int") {
     validate(
       Query("select * from users").
-        and("age = {age}::numeric").
+        and("age = {age}::int").
+        bind("age", 5),
+      "select * from users where age = {age}::int",
+      "select * from users where age = 5"
+    )
+
+    validate(
+      Query("select * from users").
+        and("age = {age}").
+        bind("age", 5),
+      "select * from users where age = {age}",
+      "select * from users where age = 5"
+    )
+  }
+
+  it("bind long") {
+    validate(
+      Query("select * from users").
+        and("age = {age}::bigint").
         bind("age", 5l),
-      "select * from users where age = {age}::numeric",
+      "select * from users where age = {age}::bigint",
       "select * from users where age = 5"
     )
 
@@ -354,6 +372,24 @@ class QuerySpec extends FunSpec with Matchers {
         bind("age", 5l),
       "select * from users where age = {age}",
       "select * from users where age = 5"
+    )
+  }
+
+  it("bind numeric") {
+    validate(
+      Query("select * from users").
+        and("age = {age}::numeric").
+        bind("age", 5.5),
+      "select * from users where age = {age}::numeric",
+      "select * from users where age = 5.5"
+    )
+
+    validate(
+      Query("select * from users").
+        and("age = {age}").
+        bind("age", 5.5),
+      "select * from users where age = {age}",
+      "select * from users where age = 5.5"
     )
   }
 
@@ -529,7 +565,7 @@ class QuerySpec extends FunSpec with Matchers {
     val q = Query("select * from users").equals("id", Some(5))
     q.debuggingInfo() should be(
       Seq(
-        "select * from users where id = {id}::numeric",
+        "select * from users where id = {id}::int",
         " - id: 5",
         "Interpolated:",
         "select * from users where id = 5"
