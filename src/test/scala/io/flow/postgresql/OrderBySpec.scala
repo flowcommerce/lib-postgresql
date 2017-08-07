@@ -10,10 +10,26 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy("  ,  ").sql should be(None)
   }
 
+  it("case") {
+    OrderBy("key").sql.get should be("key")
+    OrderBy("KEY").sql.get should be("KEY")
+    OrderBy("kEy").sql.get should be("kEy")
+  }
+
   it("direction") {
     OrderBy("key").sql.get should be("key")
     OrderBy("-key").sql.get should be("key desc")
     OrderBy("+key").sql.get should be("key")
+  }
+
+  it("composite") {
+    OrderBy("key1,key2").sql.get should be("key1, key2")
+    OrderBy("key1, key2").sql.get should be("key1, key2")
+    OrderBy("-key1,-key2").sql.get should be("key1 desc, key2 desc")
+    OrderBy(" +key1 , +key2 ").sql.get should be("key1, key2")
+    OrderBy("-lower(projects.key),created_at", Some("organizations")).sql.get should be(
+      "lower(projects.key) desc, organizations.created_at"
+    )
   }
 
   it("defaultTable") {
@@ -57,15 +73,18 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy.parse("json(foo)", None) should be(Left(Seq("Error defining json query column[foo]: Must be column.field[.field]")))
   }
 
-  it("composite") {
-    OrderBy("-lower(projects.key),created_at", Some("organizations")).sql.get should be(
-      "lower(projects.key) desc, organizations.created_at"
+  it("prevents sql injection") {
+    OrderBy.parse("drop table users") should be(
+      Left(Seq("Sort[drop table users] contains invalid characters: ' '"))
     )
   }
 
-  it("prevents sql injection") {
-    OrderBy.parse("drop table users") should be(
-      Left(Seq("Sort[drop table users] contained a space which is not allowed"))
+  it("is strict on characters allowed") {
+    OrderBy.parse("*") should be(
+      Left(Seq("Sort[*] contains invalid characters: '*'"))
+    )
+    OrderBy.parse(";") should be(
+      Left(Seq("Sort[;] contains invalid characters: ';'"))
     )
   }
 

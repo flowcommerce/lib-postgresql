@@ -19,6 +19,7 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
+  private[this] val ValidCharacters = "_-+(),.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
   val ValidFunctions = Seq("lower", "json")
 
   def parse(
@@ -31,7 +32,7 @@ object OrderBy {
       }
       case clauses => {
         clauses.find { c =>
-          c.indexOf(" ") >= 0
+          c.split("").filter(!ValidCharacters.contains(_)).nonEmpty
         } match {
           case None => {
             val parsed: Seq[Either[String, Clause]] = clauses.map { parseDirection(_, defaultTable) }
@@ -45,9 +46,10 @@ object OrderBy {
             }
           }
           case Some(invalid) => {
+            val chars = invalid.split("").filter(!ValidCharacters.contains(_)).distinct
             Left(
               Seq(
-                s"Sort[$invalid] contained a space which is not allowed"
+                s"Sort[$invalid] contains invalid characters: " + chars.mkString("'", "', '", "'")
               )
             )
           }
