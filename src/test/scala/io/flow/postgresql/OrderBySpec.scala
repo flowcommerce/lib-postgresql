@@ -4,6 +4,18 @@ import org.scalatest.{FunSpec, Matchers}
 
 class OrderBySpec extends FunSpec with Matchers {
 
+  it("removeOrder") {
+    OrderBy.removeOrder("name") should be("name")
+    OrderBy.removeOrder("-name") should be("name")
+    OrderBy.removeOrder("+name") should be("name")
+  }
+
+  it("removeFunctions") {
+    OrderBy.removeFunctions("lower(name)") should be("name")
+    OrderBy.removeFunctions("json(name)") should be("name")
+    OrderBy.removeFunctions("other(name)") should be("other(name)")
+  }
+
   it("empty") {
     OrderBy("").sql should be(None)
     OrderBy("    ").sql should be(None)
@@ -75,10 +87,16 @@ class OrderBySpec extends FunSpec with Matchers {
     )
   }
 
+  it("only allows parentheses around known functions") {
+    OrderBy.parse("other_lower(foo)", None) should be(
+      Left(Seq("Sort[other_lower(foo)] contains invalid characters: '(', ')'"))
+    )
+  }
+
   it("validates function names") {
     OrderBy.parse("case(user)") should be(Left(
       Seq(
-        "case(user): Invalid function[case]. Must be one of: lower, json"
+        "Sort[case(user)] contains invalid characters: '(', ')'"
       )
     ))
   }
@@ -89,7 +107,7 @@ class OrderBySpec extends FunSpec with Matchers {
     )
 
     OrderBy.parse("name,name||pg_sleep(5)--") should be(
-      Left(Seq("Sort[name||pg_sleep(5)--] contains invalid characters: '|'"))
+      Left(Seq("Sort[name,name||pg_sleep(5)--] contains invalid characters: '|', '(', ')', '-'"))
     )
   }
 
@@ -103,12 +121,11 @@ class OrderBySpec extends FunSpec with Matchers {
   }
 
   it("rejects invalid function") {
-    OrderBy.parse("foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower, json")))
-    OrderBy.parse("key,foo(key)") should be(Left(Seq("foo(key): Invalid function[foo]. Must be one of: lower, json")))
+    OrderBy.parse("foo(key)") should be(Left(Seq("Sort[foo(key)] contains invalid characters: '(', ')'")))
+    OrderBy.parse("key,foo(key)") should be(Left(Seq("Sort[key,foo(key)] contains invalid characters: '(', ')'")))
     OrderBy.parse("key,foo(key),bar(key)") should be(Left(
       Seq(
-        "foo(key): Invalid function[foo]. Must be one of: lower, json",
-        "bar(key): Invalid function[bar]. Must be one of: lower, json"
+        "Sort[key,foo(key),bar(key)] contains invalid characters: '(', ')'"
       )
     ))
   }

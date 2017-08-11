@@ -19,23 +19,25 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
-  private[this] val ValidCharacters = "()_-+,.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
+  private[this] val ValidCharacters = "_,.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
   val ValidFunctions = Seq("lower", "json")
+  val ValidOrderOperators = Seq("-", "+")
 
   def parse(
     value: String,
     defaultTable: Option[String] = None
   ): Either[Seq[String], OrderBy] = {
-    value.trim.split(",").map(_.trim).filter(!_.isEmpty).toList match {
+    value.trim.split(",").map(_.trim).filter(_.nonEmpty).toList match {
       case Nil => {
         Right(OrderBy(Nil))
       }
-      case clauses => {
+      case allClauses => {
+        val clauses = allClauses.map(removeOrder).map(removeFunctions)
         clauses.find { c =>
           c.split("").exists(!ValidCharacters.contains(_))
         } match {
           case None => {
-            val parsed: Seq[Either[String, Clause]] = clauses.map { parseDirection(_, defaultTable) }
+            val parsed: Seq[Either[String, Clause]] = allClauses.map { parseDirection(_, defaultTable) }
             parsed.collect {case Left(x) => x } match {
               case Nil => Right(
                 OrderBy(
@@ -45,15 +47,35 @@ object OrderBy {
               case errors => Left(errors)
             }
           }
-          case Some(invalid) => {
-            val chars = invalid.split("").filter(!ValidCharacters.contains(_)).distinct
+          case Some(_) => {
+            val chars = value.split("").filter(!ValidCharacters.contains(_)).distinct
             Left(
               Seq(
-                s"Sort[$invalid] contains invalid characters: " + chars.mkString("'", "', '", "'")
+                s"Sort[$value] contains invalid characters: " + chars.mkString("'", "', '", "'")
               )
             )
           }
         }
+      }
+    }
+  }
+
+  private[postgresql] def removeOrder(clause: String): String = {
+    ValidOrderOperators.fold(clause) { case (c, op) =>
+      if (c.startsWith(op)) {
+        c.substring(op.length)
+      } else {
+        c
+      }
+    }
+  }
+
+  private[postgresql] def removeFunctions(clause: String): String = {
+    ValidFunctions.fold(clause) { case (c, f) =>
+      if (c.startsWith(s"$f(") && c.endsWith(")")) {
+        c.substring(0, c.length-1).substring(f.length + 1)
+      } else {
+        c
       }
     }
   }
@@ -81,7 +103,7 @@ object OrderBy {
     }
   }
 
-  // Look for funtions
+  // Look for functions
   private[this] val FunctionRegexp = """^([a-z]+)\((.+)\)$""".r
 
   private[this] def parseFunction(
@@ -91,18 +113,18 @@ object OrderBy {
   ): Either[String, Clause] = {
     value match {
       case FunctionRegexp(function, column) => {
-        ValidFunctions.contains(function) match {
-          case false => Left(s"$value: Invalid function[$function]. Must be one of: " + ValidFunctions.mkString(", "))
-          case true =>
-            function match {
-              case "json" =>
-                withJson(column) match {
-                  case Right(query) => Right(Clause(direction, query))
-                  case Left(error) => Left(error)
-                }
-              case "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
-              case _ => sys.error(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
-            }
+        if (ValidFunctions.contains(function)) {
+          function match {
+            case "json" =>
+              withJson(column) match {
+                case Right(query) => Right(Clause(direction, query))
+                case Left(error) => Left(error)
+              }
+            case "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+            case _ => sys.error(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
+          }
+        } else {
+          Left(s"$value: Invalid function[$function]. Must be one of: " + ValidFunctions.mkString(", "))
         }
       }
       case _ => {
