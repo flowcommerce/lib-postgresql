@@ -70,7 +70,17 @@ class OrderBySpec extends FunSpec with Matchers {
   }
 
   it("rejects invalid json function") {
-    OrderBy.parse("json(foo)", None) should be(Left(Seq("Error defining json query column[foo]: Must be column.field[.field]")))
+    OrderBy.parse("json(foo)", None) should be(
+      Left(Seq("Error defining json query column[foo]: Must be column.field[.field]"))
+    )
+  }
+
+  it("validates function names") {
+    OrderBy.parse("case(user)") should be(Left(
+      Seq(
+        "case(user): Invalid function[case]. Must be one of: lower, json"
+      )
+    ))
   }
 
   it("prevents sql injection") {
