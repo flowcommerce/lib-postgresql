@@ -4,7 +4,7 @@ organization := "io.flow"
 
 scalaVersion in ThisBuild := "2.11.11"
 
-version := "0.0.48"
+version := "0.0.49"
 
 lazy val root = project
   .in(file("."))
