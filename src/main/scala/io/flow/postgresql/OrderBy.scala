@@ -19,7 +19,7 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
-  private[this] val ValidCharacters = "_-+(),.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
+  private[this] val ValidCharacters = "()_-+,.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
   val ValidFunctions = Seq("lower", "json")
 
   def parse(
@@ -32,7 +32,7 @@ object OrderBy {
       }
       case clauses => {
         clauses.find { c =>
-          c.split("").filter(!ValidCharacters.contains(_)).nonEmpty
+          c.split("").exists(!ValidCharacters.contains(_))
         } match {
           case None => {
             val parsed: Seq[Either[String, Clause]] = clauses.map { parseDirection(_, defaultTable) }
@@ -150,7 +150,7 @@ object OrderBy {
     column: String,
     function: Option[String] = None
   ) {
-    val sql = {
+    val sql: String = {
       val text = function match {
         case None => column
         case Some(f) => s"$f($column)"
