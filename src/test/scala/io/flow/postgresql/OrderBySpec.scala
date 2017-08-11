@@ -87,6 +87,10 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy.parse("drop table users") should be(
       Left(Seq("Sort[drop table users] contains invalid characters: ' '"))
     )
+
+    OrderBy.parse("name,name||pg_sleep(5)--") should be(
+      Left(Seq("Sort[name||pg_sleep(5)--] contains invalid characters: '|'"))
+    )
   }
 
   it("is strict on characters allowed") {
