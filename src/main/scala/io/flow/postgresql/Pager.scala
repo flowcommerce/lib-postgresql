@@ -88,19 +88,19 @@ trait GenericPager[T, Context] extends Iterator[T] {
   /**
     * Produces the next page of elements
     * @param context the context keeping track of the traversal the elements
-    * @return the
+    * @return the next page of elements
     */
   def page(context: Context): Iterable[T]
 
   /**
     * Tests whether this iterator can provide another element.
-    * @return  `true` if a subsequent call to `next` will yield an element, `false` otherwise.
+    * @return `true` if a subsequent call to `next` will yield an element, `false` otherwise.
     */
   def hasNext: Boolean = currentPageIterator.hasNext
 
   /**
     * Produces the next element of this iterator.
-    * @return  the next element of this iterator, if `hasNext` is `true`, throws a [[NoSuchElementException]] otherwise.
+    * @return the next element of this iterator, if `hasNext` is `true`, throws a [[NoSuchElementException]] otherwise.
     */
   def next: T = {
     if (hasNext) nextAndReload()
