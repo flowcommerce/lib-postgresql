@@ -2,12 +2,58 @@ package io.flow.postgresql
 
 object Pager {
 
+  /**
+    * Helper to create a pager with an offset, inferring the types from the function returning each page of results.
+    *
+    * Example:
+    *
+    *    Pager.create { offset =>
+    *      SubscriptionsDao.findAll(
+    *        publication = Some(Publication.DailySummary),
+    *        offset = offset
+    *      )
+    *    }.foreach { subscription =>
+    *      println("subscription: " + subscription)
+    *    }
+    */
   def create[T](pagingFunction: Long => Iterable[T]): Pager[T] = byOffset[T](pagingFunction)
 
+  /**
+    * Helper to create a pager with an offset, inferring the types from the function returning each page of results.
+    *
+    * Example:
+    *
+    *    Pager.create { offset =>
+    *      SubscriptionsDao.findAll(
+    *        publication = Some(Publication.DailySummary),
+    *        offset = offset
+    *      )
+    *    }.foreach { subscription =>
+    *      println("subscription: " + subscription)
+    *    }
+    */
   def byOffset[T](pagingFunction: Long => Iterable[T]): Pager[T] = new Pager[T] {
     override def page(offset: Long): Iterable[T] = pagingFunction(offset)
   }
 
+  /**
+    * Helper to create a pager using on the last seen id.
+    * This pager is useful when scanning large tables where using the offset may incur a performance hit
+    *
+    * Example:
+    *
+    *    Pager.byLastId[T, Id](
+    *      { lastId: Option[Id] =>
+    *        SubscriptionsDao.findAllWhereIdGreaterThan(
+    *          publication = Some(Publication.DailySummary),
+    *          minId = lastId
+    *        )
+    *      },
+    *      subscription: T => subscription.id
+    *    ).foreach { subscription =>
+    *      println("subscription: " + subscription)
+    *    }
+    */
   def byLastId[T, Id](pagingFunction: Option[Id] => Iterable[T], getId: T => Id): LastIdPager[T, Id] = {
     new LastIdPager[T, Id] {
       override def page(lastId: Option[Id]): Iterable[T] = pagingFunction(lastId)
