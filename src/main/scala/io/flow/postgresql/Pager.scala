@@ -70,6 +70,7 @@ trait GenericPager[T, Context] extends Iterator[T] {
   private[this] var currentPageIterator: Iterator[T] = Iterator.empty
   private[this] var currentContext: Context = initialContext
 
+  // load the first page
   loadPage()
 
   /**
