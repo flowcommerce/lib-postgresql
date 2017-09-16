@@ -2,9 +2,7 @@ name := "lib-postgresql"
 
 organization := "io.flow"
 
-scalaVersion in ThisBuild := "2.12.3"
-
-crossScalaVersions := Seq("2.12.3", "2.11.11")
+scalaVersion in ThisBuild := "2.11.11"
 
 version := "0.0.54"
 
@@ -13,7 +11,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % "test"
+      "org.scalatestplus" %% "play" % "1.4.0" % "test"
     )
   )
 
