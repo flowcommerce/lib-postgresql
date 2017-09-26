@@ -1,7 +1,8 @@
 package io.flow.postgresql
 
-import anorm._
 import java.util.UUID
+
+import anorm._
 import org.joda.time.DateTime
 
 sealed trait BindVariable {
@@ -122,7 +123,8 @@ case class Query(
   limit: Option[Long] = None,
   offset: Option[Long] = None,
   debug: Boolean = false,
-  groupBy: Seq[String] = Nil
+  groupBy: Seq[String] = Nil,
+  locking: Option[String] = None
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -406,6 +408,8 @@ case class Query(
     this.copy(offset = Some(value))
   }
 
+  def locking(clause: String): Query = copy(locking = Some(clause))
+
   /**
     * Creates the full text of the sql query
     */
@@ -428,7 +432,8 @@ case class Query(
         case clauses => Some("order by " + clauses.mkString(", "))
       },
       limit.map(v => s"limit $v"),
-      offset.map(v => s"offset $v")
+      offset.map(v => s"offset $v"),
+      locking
     ).flatten.mkString(" ")
   }
 
