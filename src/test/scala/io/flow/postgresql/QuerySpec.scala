@@ -161,6 +161,32 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("not in") {
+    validate(
+      Query("select * from users").optionalNotIn("email", None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").optionalNotIn("email", Some(Nil)),
+      "select * from users where false",
+      "select * from users where false"
+    )
+
+    validate(
+      Query("select * from users").notIn("email", Seq("mike@flow.io")),
+      "select * from users where email not in (trim({email}))",
+      "select * from users where email not in (trim('mike@flow.io'))"
+    )
+
+    validate(
+      Query("select * from users").notIn("email", Seq("mike@flow.io", "paolo@flow.io")),
+      "select * from users where email not in (trim({email}), trim({email2}))",
+      "select * from users where email not in (trim('mike@flow.io'), trim('paolo@flow.io'))"
+    )
+  }
+
   it("in with datetime") {
     val ts = DateTime.now
     val values = Seq(ts, ts.plusHours(1))

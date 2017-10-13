@@ -193,6 +193,42 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
+    inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
+  }
+
+  def optionalNotIn[T](
+    column: String,
+    values: Option[Seq[T]],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
+    values match {
+      case None => this
+      case Some(v) => notIn(column, v, columnFunctions, valueFunctions)
+    }
+  }
+
+  def notIn[T](
+    column: String,
+    values: Seq[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
+    inClauseBuilder("not in", column, values, columnFunctions, valueFunctions)
+  }
+
+  private[this] def inClauseBuilder[T](
+    operation: String,
+    column: String,
+    values: Seq[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
+    assert(
+      operation == "in" || operation == "not in",
+      s"Invalid operation[$operation] - must be 'in' or 'not in'"
+    )
+
     values match {
       case Nil => {
         this.copy(
@@ -207,7 +243,7 @@ case class Query(
 
         val exprColumn = withFunctions(column, columnFunctions)
 
-        val cond = s"$exprColumn in (%s)".format(
+        val cond = s"$exprColumn $operation (%s)".format(
           bindVariables.map { bindVar =>
             withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions)
           }.mkString(", ")
