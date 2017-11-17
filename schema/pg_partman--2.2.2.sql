@@ -81,6 +81,7 @@ CHECK (partman.check_partition_type(sub_partition_type));
 /*
  * Apply constraints managed by partman extension
  */
+
 CREATE FUNCTION apply_constraints(p_parent_table text, p_child_table text DEFAULT NULL, p_analyze boolean DEFAULT FALSE, p_job_id bigint DEFAULT NULL, p_debug boolean DEFAULT FALSE) RETURNS void
     LANGUAGE plpgsql
     AS $$
@@ -1938,7 +1939,9 @@ $$;
 /*
  * Function to create id partitions
  */
-CREATE FUNCTION create_partition_id(p_parent_table text, p_partition_ids bigint[], p_analyze boolean DEFAULT true) RETURNS boolean
+
+-- FLOW modification - update p_analyze default FALSE to see it helps with table locks
+CREATE FUNCTION create_partition_id(p_parent_table text, p_partition_ids bigint[], p_analyze boolean DEFAULT false) RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 DECLARE
@@ -2026,7 +2029,9 @@ FOREACH v_id IN ARRAY p_partition_ids LOOP
     END IF;
 
     -- Ensure analyze is run if a new partition is created. Otherwise if one isn't, will be false and analyze will be skipped
-    v_analyze := TRUE;
+
+    -- FLOW modification - update to FALSE to see it helps with table locks
+    v_analyze := FALSE;
 
     IF v_jobmon_schema IS NOT NULL THEN
         v_step_id := add_step(v_job_id, 'Creating new partition '||v_partition_name||' with interval from '||v_id||' to '||(v_id + v_partition_interval)-1);
@@ -2238,7 +2243,9 @@ $$;
 /*
  * Function to create a child table in a time-based partition set
  */
-CREATE FUNCTION create_partition_time (p_parent_table text, p_partition_times timestamp[], p_analyze boolean DEFAULT true)
+
+-- FLOW modification - update p_analyze default FALSE to see it helps with table locks
+CREATE FUNCTION create_partition_time (p_parent_table text, p_partition_times timestamp[], p_analyze boolean DEFAULT false)
 RETURNS boolean
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
@@ -2355,7 +2362,9 @@ FOREACH v_time IN ARRAY p_partition_times LOOP
     END IF;
 
     -- Ensure analyze is run if a new partition is created. Otherwise if one isn't, will be false and analyze will be skipped
-    v_analyze := TRUE;
+
+    -- FLOW modification - update to FALSE to see it helps with table locks
+    v_analyze := FALSE;
 
     IF v_jobmon_schema IS NOT NULL THEN
         v_step_id := add_step(v_job_id, format('Creating new partition %s.%s with interval from %s to %s'
@@ -3898,7 +3907,9 @@ $$;
  * For large partition sets, running analyze can cause maintenance to take longer than expected. Can set p_analyze to false to avoid a forced analyze run.
  * Be aware that constraint exclusion may not work properly until an analyze on the partition set is run.
  */
-CREATE FUNCTION run_maintenance(p_parent_table text DEFAULT NULL, p_analyze boolean DEFAULT true, p_jobmon boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
+
+-- FLOW modification - update p_analyze default FALSE to see it helps with table locks
+CREATE FUNCTION run_maintenance(p_parent_table text DEFAULT NULL, p_analyze boolean DEFAULT false, p_jobmon boolean DEFAULT true, p_debug boolean DEFAULT false) RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     AS $$
 DECLARE
