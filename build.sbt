@@ -4,6 +4,8 @@ organization := "io.flow"
 
 scalaVersion in ThisBuild := "2.11.12"
 
+crossScalaVersions := Seq("2.11.12", "2.12.4")
+
 version := "0.0.58"
 
 lazy val root = project
@@ -11,7 +13,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.1" % "test"
+      "org.scalatestplus.play" %% "scalatestplus-play" % "3.1.2" % "test"
     )
   )
 
