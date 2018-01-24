@@ -1,12 +1,9 @@
 package main
 
 import (
-	"github.com/flowcommerce/tools/executor"
+	"github.com/flowcommerce/tools/scala_library"
 )
 
 func main() {
-	executor := executor.Create("lib-postgres")
-	executor = executor.Add("dev tag")
-	executor = executor.Add("sbt +publish")
-	executor.Run()
+	scala_library.Run()
 }
