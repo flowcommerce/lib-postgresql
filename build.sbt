@@ -13,7 +13,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% "lib-test-utils" % "0.0.3" % Test
+      "io.flow" %% "lib-test-utils" % "0.0.4" % Test
     )
   )
 
