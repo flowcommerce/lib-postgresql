@@ -3,7 +3,7 @@ package io.flow.postgresql
 import java.util.UUID
 
 import anorm._
-import org.joda.time.DateTime
+import org.joda.time.{DateTime, LocalDate}
 
 sealed trait BindVariable {
 
@@ -19,45 +19,51 @@ object BindVariable {
 
   case class Int(override val name: String, override val value: Number) extends BindVariable {
     override val sql = s"{$name}::int"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, value.toString)
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class BigInt(override val name: String, override val value: Number) extends BindVariable {
     override val sql = s"{$name}::bigint"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, value.toString)
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class Num(override val name: String, override val value: Number) extends BindVariable {
     override val sql = s"{$name}::numeric"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, value.toString)
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class Str(override val name: String, override val value: String) extends BindVariable {
     override val sql = s"{$name}"
-    override val functions = Seq(Query.Function.Trim)
-    override def toNamedParameter() = NamedParameter(name, value)
+    override val functions: Seq[Query.Function] = Seq(Query.Function.Trim)
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value)
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
     override val sql = s"{$name}::uuid"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, value.toString)
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+  }
+
+  case class DateVar(override val name: String, override val value: LocalDate) extends BindVariable {
+    override val sql = s"{$name}::date"
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable {
     override val sql = s"{$name}::timestamptz"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, value.toString)
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
   }
-  
+
   case class Unit(override val name: String) extends BindVariable {
-    override val value = None
+    override val value: Any = None
     override val sql = s"{$name}"
-    override val functions = Nil
-    override def toNamedParameter() = NamedParameter(name, Option.empty[String])
+    override val functions: Seq[Query.Function] = Nil
+    override def toNamedParameter(): NamedParameter = NamedParameter(name, Option.empty[String])
   }
 
   private[this] val LeadingUnderscores = """^_+""".r
@@ -100,15 +106,15 @@ object Query {
   object Function {
 
     case object Lower extends Function {
-      override def toString = "lower"
+      override def toString: String = "lower"
     }
 
     case object Trim extends Function {
-      override def toString = "trim"
+      override def toString: String = "trim"
     }
 
     case class Custom(name: String) extends Function {
-      override def toString = name
+      override def toString: String = name
     }
 
   }
@@ -369,9 +375,10 @@ case class Query(
 
   def boolean(column: String, value: Boolean): Query = {
     and(
-      value match {
-        case true => s"$column is true"
-        case false => s"$column is false"
+      if (value) {
+        s"$column is true"
+      } else {
+        s"$column is false"
       }
     )
   }
@@ -393,9 +400,10 @@ case class Query(
 
   def nullBoolean(column: String, value: Boolean): Query = {
     and(
-      value match {
-        case true => s"$column is not null"
-        case false => s"$column is null"
+      if (value) {
+        s"$column is not null"
+      } else {
+        s"$column is null"
       }
     )
   }
@@ -507,6 +515,9 @@ case class Query(
         case BindVariable.Uuid(_, value) => {
           query.replace(bindVar.sql, s"'$value'::uuid")
         }
+        case BindVariable.DateVar(_, value) => {
+          query.replace(bindVar.sql, s"'$value'::date")
+        }
         case BindVariable.DateTimeVar(_, value) => {
           query.replace(bindVar.sql, s"'$value'::timestamptz")
         }
@@ -524,7 +535,7 @@ case class Query(
     parser: anorm.ResultSetParser[T]
   ) (
     implicit c: java.sql.Connection
-  ) = {
+  ): T = {
     anormSql().as(parser)
   }
 
@@ -533,13 +544,13 @@ case class Query(
     */
   def debuggingInfo(): String = {
     if (bind.isEmpty) {
-      interpolate
+      interpolate()
     } else {
       Seq(
-        sql,
+        sql(),
         bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
         "Interpolated:",
-        interpolate
+        interpolate()
       ).mkString("\n")
     }
   }
@@ -551,7 +562,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql).on(bind.map(_.toNamedParameter): _*)
+    SQL(sql()).on(bind.map(_.toNamedParameter()): _*)
   }
 
 
@@ -561,12 +572,13 @@ case class Query(
   private[this] def toBindVariable(name: String, value: Any): BindVariable = {
     value match {
       case v: UUID => BindVariable.Uuid(name, v)
+      case v: LocalDate => BindVariable.DateVar(name, v)
       case v: DateTime => BindVariable.DateTimeVar(name, v)
       case v: Int => BindVariable.Int(name, v)
       case v: Long => BindVariable.BigInt(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
-      case v: Unit => BindVariable.Unit(name)
+      case _: Unit => BindVariable.Unit(name)
       case _ => BindVariable.Str(name, value.toString)
     }
   }

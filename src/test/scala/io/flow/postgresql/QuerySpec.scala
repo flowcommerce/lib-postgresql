@@ -2,32 +2,23 @@ package io.flow.postgresql
 
 import scala.util.{Failure, Success, Try}
 import java.util.UUID
-import org.joda.time.DateTime
+
+import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.{FunSpec, Matchers}
 
 class QuerySpec extends FunSpec with Matchers {
 
   def validate(query: Query, sql: String, interpolate: String) {
-    query.sql == sql match {
-      case true => {
-        // No-op
-      }
-      case false => {
-        println("expected: " + sql)
-        println("  actual: " + query.sql)
-        query.sql should be(sql)
-      }
+    if (query.sql != sql) {
+      println("expected: " + sql)
+      println("  actual: " + query.sql)
+      query.sql should be(sql)
     }
 
-    query.interpolate == interpolate match {
-      case true => {
-        // No-op
-      }
-      case false => {
-        println("expected: " + interpolate)
-        println("  actual: " + query.interpolate)
-        query.interpolate should be(interpolate)
-      }
+    if (query.interpolate != interpolate) {
+      println("expected: " + interpolate)
+      println("  actual: " + query.interpolate)
+      query.interpolate should be(interpolate)
     }
   }
 
@@ -84,6 +75,51 @@ class QuerySpec extends FunSpec with Matchers {
       Query("select * from users").greaterThanOrEquals("id", Some(5)),
       "select * from users where id >= {id}::int",
       "select * from users where id >= 5"
+    )
+  }
+
+  it("equals w/ date") {
+    val date = LocalDate.now
+    validate(
+      Query("select * from users").equals("created_at", Some(date)),
+      "select * from users where created_at = {created_at}::date",
+      s"select * from users where created_at = '$date'::date"
+    )
+  }
+
+  it("lessThan w/ date") {
+    val date = LocalDate.now
+    validate(
+      Query("select * from users").lessThan("created_at", Some(date)),
+      "select * from users where created_at < {created_at}::date",
+      s"select * from users where created_at < '$date'::date"
+    )
+  }
+
+  it("lessThanOrEquals w/ date") {
+    val date = LocalDate.now
+    validate(
+      Query("select * from users").lessThanOrEquals("created_at", Some(date)),
+      "select * from users where created_at <= {created_at}::date",
+      s"select * from users where created_at <= '$date'::date"
+    )
+  }
+
+  it("greaterThan w/ date") {
+    val date = LocalDate.now
+    validate(
+      Query("select * from users").greaterThan("created_at", Some(date)),
+      "select * from users where created_at > {created_at}::date",
+      s"select * from users where created_at > '$date'::date"
+    )
+  }
+
+  it("greaterThanOrEquals w/ date") {
+    val date = LocalDate.now
+    validate(
+      Query("select * from users").greaterThanOrEquals("created_at", Some(date)),
+      "select * from users where created_at >= {created_at}::date",
+      s"select * from users where created_at >= '$date'::date"
     )
   }
 
@@ -424,9 +460,9 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       Query("select * from users where guid = {guid}::uuid").
-        bind("guid", guid),
+      bind("guid", guid),
       "select * from users where guid = {guid}::uuid",
-      s"select * from users where guid = '${guid}'::uuid"
+      s"select * from users where guid = '$guid'::uuid"
     )
   }
 
