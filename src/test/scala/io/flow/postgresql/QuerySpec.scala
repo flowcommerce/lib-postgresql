@@ -639,14 +639,6 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("json array") {
-    validate(
-      Query("select * from users").operation("table.json::jsonb", "?|", "value", valueFunctions = Seq(Query.Function.Custom("array"))),
-      "select * from users where table.json::jsonb ?| array[trim({json_jsonb})]",
-      "select * from users where table.json::jsonb ?| array[trim('value')]"
-    )
-  }
-
   it("debuggingInfo simple query") {
     Query("select * from users").debuggingInfo() should be("select * from users")
   }

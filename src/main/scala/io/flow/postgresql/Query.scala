@@ -8,62 +8,60 @@ import org.joda.time.{DateTime, LocalDate}
 sealed trait BindVariable {
 
   def name: String
-  def functions: Seq[Query.Function]
+  def defaultValueFunctions: Seq[Query.Function] = Nil
   def value: Any
-  def sql: String
-  def toNamedParameter(): NamedParameter
+  def toNamedParameter: NamedParameter
+  def psqlType: Option[String]
 
+  final def sql: String = psqlType match {
+    case None => s"{$name}"
+    case Some(t) => s"{$name}::$t"
+  }
 }
 
 object BindVariable {
 
   case class Int(override val name: String, override val value: Number) extends BindVariable {
-    override val sql = s"{$name}::int"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("int")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class BigInt(override val name: String, override val value: Number) extends BindVariable {
-    override val sql = s"{$name}::bigint"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("bigint")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class Num(override val name: String, override val value: Number) extends BindVariable {
-    override val sql = s"{$name}::numeric"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("numeric")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class Str(override val name: String, override val value: String) extends BindVariable {
-    override val sql = s"{$name}"
-    override val functions: Seq[Query.Function] = Seq(Query.Function.Trim)
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value)
+    override val psqlType: Option[String] = None
+    override val defaultValueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value)
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
-    override val sql = s"{$name}::uuid"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("uuid")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class DateVar(override val name: String, override val value: LocalDate) extends BindVariable {
-    override val sql = s"{$name}::date"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("date")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable {
-    override val sql = s"{$name}::timestamptz"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, value.toString)
+    override val psqlType: Option[String] = Some("timestamptz")
+    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
   case class Unit(override val name: String) extends BindVariable {
+    override val psqlType: Option[String] = None
     override val value: Any = None
-    override val sql = s"{$name}"
-    override val functions: Seq[Query.Function] = Nil
-    override def toNamedParameter(): NamedParameter = NamedParameter(name, Option.empty[String])
+    override val defaultValueFunctions: Seq[Query.Function] = Nil
+    override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 
   private[this] val LeadingUnderscores = """^_+""".r
@@ -111,10 +109,6 @@ object Query {
 
     case object Trim extends Function {
       override def toString: String = "trim"
-    }
-
-    case class Custom(name: String) extends Function {
-      override def toString: String = name
     }
 
   }
@@ -182,7 +176,7 @@ case class Query(
   ): Query = {
     val bindVar = toBindVariable(uniqueBindName(column), value)
     val exprColumn = withFunctions(column, columnFunctions, value)
-    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions, value)
+    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
 
     this.copy(
       conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
@@ -273,7 +267,7 @@ case class Query(
 
         val cond = s"$exprColumn $operation (%s)".format(
           bindVariables.map { bindVar =>
-            withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions, multiple.head)
+            withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
           }.mkString(", ")
         )
         this.copy(
@@ -584,7 +578,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(bind.map(_.toNamedParameter()): _*)
+    SQL(sql()).on(bind.map(_.toNamedParameter): _*)
   }
 
 
@@ -625,12 +619,8 @@ case class Query(
     functions: Seq[Query.Function],
     value: T
   ): String = {
-    val applicable = applicableFunctions(functions, value)
-    applicable.distinct.reverse.foldLeft(name) { case (acc, function) =>
-      if (function.toString == "array")
-        s"$function[$acc]"
-      else
-        s"$function($acc)"
+    applicableFunctions(functions, value).distinct.reverse.foldLeft(name) { case (acc, function) =>
+      s"$function($acc)"
     }
   }
 
@@ -643,12 +633,8 @@ case class Query(
     value: T
   ): Seq[Query.Function] = {
     value match {
-      case None => Nil
+      case None | _: UUID | _: LocalDate | _: DateTime | _: Int | _: Long | _: Number | _: Unit => Nil
       case Some(v) => applicableFunctions(functions, v)
-      case _: UUID | _: LocalDate | _: DateTime | _: Int | _: Long | _: Number | _: Unit => functions.filter {
-        case _: Query.Function.Custom => true
-        case Query.Function.Lower | Query.Function.Trim => false
-      }
       case _ => functions
     }
   }
