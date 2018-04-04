@@ -60,7 +60,6 @@ object BindVariable {
   case class Unit(override val name: String) extends BindVariable {
     override val psqlType: Option[String] = None
     override val value: Any = None
-    override val defaultValueFunctions: Seq[Query.Function] = Nil
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 
