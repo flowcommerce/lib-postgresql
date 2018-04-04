@@ -38,6 +38,34 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("equalsIgnoreCase") {
+    validate(
+      Query("select * from users").equalsIgnoreCase("id", Some(5)),
+      "select * from users where id = {id}::int",
+      "select * from users where id = 5"
+    )
+
+    validate(
+      Query("select * from users").equalsIgnoreCase("name", Some("flow")),
+      "select * from users where lower(trim(name)) = lower(trim({name}))",
+      "select * from users where lower(trim(name)) = lower(trim('flow'))"
+    )
+  }
+
+  it("notEqualsIgnoreCase") {
+    validate(
+      Query("select * from users").notEqualsIgnoreCase("id", Some(5)),
+      "select * from users where id != {id}::int",
+      "select * from users where id != 5"
+    )
+
+    validate(
+      Query("select * from users").notEqualsIgnoreCase("name", Some("flow")),
+      "select * from users where lower(trim(name)) != lower(trim({name}))",
+      "select * from users where lower(trim(name)) != lower(trim('flow'))"
+    )
+  }
+
   it("notEquals") {
     validate(
       Query("select * from users").notEquals("id", Some(5)),

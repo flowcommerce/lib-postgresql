@@ -136,8 +136,30 @@ case class Query(
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
 
+  def equalsIgnoreCase[T](column: String, value: Option[T]): Query = optionalOperation(
+    column, "=", value,
+    columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
+    valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
+  )
+  def equalsIgnoreCase[T](column: String, value: T): Query = operation(
+    column, "=", value,
+    columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
+    valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
+  )
+
   def notEquals[T](column: String, value: Option[T]): Query = optionalOperation(column, "!=", value)
   def notEquals[T](column: String, value: T): Query = operation(column, "!=", value)
+
+  def notEqualsIgnoreCase[T](column: String, value: Option[T]): Query = optionalOperation(
+    column, "!=", value,
+    columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
+    valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
+  )
+  def notEqualsIgnoreCase[T](column: String, value: T): Query = operation(
+    column, "!=", value,
+    columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
+    valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
+  )
 
   def lessThan[T](column: String, value: Option[T]): Query = optionalOperation(column, "<", value)
   def lessThan[T](column: String, value: T): Query = operation(column, "<", value)
@@ -159,8 +181,8 @@ case class Query(
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
     val bindVar = toBindVariable(uniqueBindName(column), value)
-    val exprColumn = withFunctions(column, columnFunctions)
-    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions)
+    val exprColumn = withFunctions(column, columnFunctions, value)
+    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions, value)
 
     this.copy(
       conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
@@ -247,11 +269,11 @@ case class Query(
           toBindVariable(uniqueBindName(n), value)
         }
 
-        val exprColumn = withFunctions(column, columnFunctions)
+        val exprColumn = withFunctions(column, columnFunctions, multiple.head)
 
         val cond = s"$exprColumn $operation (%s)".format(
           bindVariables.map { bindVar =>
-            withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions)
+            withFunctions(bindVar.sql, valueFunctions ++ bindVar.functions, multiple.head)
           }.mkString(", ")
         )
         this.copy(
@@ -598,12 +620,36 @@ case class Query(
     }
   }
 
-  private[this] def withFunctions(name: String, options: Seq[Query.Function]): String = {
-    options.distinct.reverse.foldLeft(name) { case (value, option) =>
-      if (option.toString == "array")
-        s"$option[$value]"
+  private[this] def withFunctions[T](
+    name: String,
+    functions: Seq[Query.Function],
+    value: T
+  ): String = {
+    val applicable = applicableFunctions(functions, value)
+    applicable.distinct.reverse.foldLeft(name) { case (acc, function) =>
+      if (function.toString == "array")
+        s"$function[$acc]"
       else
-        s"$option($value)"
+        s"$function($acc)"
+    }
+  }
+
+  /**
+    * Doesn't makes sense to apply lower/trim on all types. select only
+    * applicable filters based on the type of the value
+    */
+  private[this] def applicableFunctions[T](
+    functions: Seq[Query.Function],
+    value: T
+  ): Seq[Query.Function] = {
+    value match {
+      case None => Nil
+      case Some(v) => applicableFunctions(functions, v)
+      case _: UUID | _: LocalDate | _: DateTime | _: Int | _: Long | _: Number | _: Unit => functions.filter {
+        case _: Query.Function.Custom => true
+        case Query.Function.Lower | Query.Function.Trim => false
+      }
+      case _ => functions
     }
   }
 
