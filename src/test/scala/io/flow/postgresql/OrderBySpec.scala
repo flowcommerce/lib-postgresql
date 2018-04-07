@@ -13,6 +13,7 @@ class OrderBySpec extends FunSpec with Matchers {
   it("removeFunctions") {
     OrderBy.removeFunctions("lower(name)") should be("name")
     OrderBy.removeFunctions("json(name)") should be("name")
+    OrderBy.removeFunctions("abs(name)") should be("name")
     OrderBy.removeFunctions("other(name)") should be("other(name)")
   }
 
@@ -42,6 +43,9 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy("-lower(projects.key),created_at", Some("organizations")).sql.get should be(
       "lower(projects.key) desc, organizations.created_at"
     )
+    OrderBy("-abs(projects.value),created_at", Some("organizations")).sql.get should be(
+      "abs(projects.value) desc, organizations.created_at"
+    )
   }
 
   it("defaultTable") {
@@ -60,6 +64,10 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy("lower(key)").sql.get should be("lower(key)")
     OrderBy("-lower(key)").sql.get should be("lower(key) desc")
     OrderBy("+lower(key)").sql.get should be("lower(key)")
+
+    OrderBy("abs(key)").sql.get should be("abs(key)")
+    OrderBy("-abs(key)").sql.get should be("abs(key) desc")
+    OrderBy("+abs(key)").sql.get should be("abs(key)")
   }
 
   it("function with defaultTable") {

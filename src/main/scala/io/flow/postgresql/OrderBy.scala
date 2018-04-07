@@ -20,7 +20,7 @@ case class OrderBy(clauses: Seq[String]) {
 object OrderBy {
 
   private[this] val ValidCharacters = "_,.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
-  val ValidFunctions = Seq("lower", "json")
+  val ValidFunctions = Seq("abs", "lower", "json")
   val ValidOrderOperators = Seq("-", "+")
 
   def parse(
@@ -120,7 +120,7 @@ object OrderBy {
                 case Right(query) => Right(Clause(direction, query))
                 case Left(error) => Left(error)
               }
-            case "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
+            case "abs" | "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
             case _ => sys.error(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
           }
         } else {
