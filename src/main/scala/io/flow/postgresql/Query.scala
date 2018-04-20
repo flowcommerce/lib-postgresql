@@ -5,6 +5,8 @@ import java.util.UUID
 import anorm._
 import org.joda.time.{DateTime, LocalDate}
 
+import scala.annotation.tailrec
+
 object Query {
 
   trait Function
@@ -29,16 +31,31 @@ object Query {
 
 }
 
+sealed trait QueryCondition
+
+object QueryCondition {
+
+  case class Column[T](
+    column: String,
+    operator: String,
+    values: Seq[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ) extends QueryCondition
+
+  case class Static(expression: String) extends QueryCondition
+}
+
 case class Query(
   base: String,
-  conditions: Seq[String] = Nil,
+  conditions: Seq[QueryCondition] = Nil,
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
   locking: Option[String] = None,
-  bind: Seq[BindVariable[_]] = Nil
+  explicitBindVariables: Seq[BindVariable[_]] = Nil
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -88,13 +105,16 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    val bindVar = BindVariables.createWithUniqueName(bind, column, value)
-    val exprColumn = withFunctions(column, columnFunctions, value)
-    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
-
     this.copy(
-      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
-      bind = bind ++ Seq(bindVar)
+      conditions = conditions ++ Seq(
+        QueryCondition.Column(
+          column = column,
+          operator = operator,
+          values = Seq(value),
+          columnFunctions = columnFunctions,
+          valueFunctions = valueFunctions
+        )
+      )
     )
   }
 
@@ -132,13 +152,6 @@ case class Query(
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
   }
 
-  def in[T](
-    column: String,
-    query: Query
-  ): Query = {
-
-  }
-
   def optionalNotIn[T](
     column: String,
     values: Option[Seq[T]],
@@ -161,48 +174,28 @@ case class Query(
   }
 
   private[this] def inClauseBuilder[T](
-    operation: String,
+    operator: String,
     column: String,
     values: Seq[T],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
     assert(
-      operation == "in" || operation == "not in",
-      s"Invalid operation[$operation] - must be 'in' or 'not in'"
+      operator == "in" || operator == "not in",
+      s"Invalid operation[$operator] - must be 'in' or 'not in'"
     )
 
-    values match {
-      case Nil => {
-        this.copy(
-          conditions = conditions ++ Seq("false")
+    this.copy(
+      conditions = conditions ++ Seq(
+        QueryCondition.Column(
+          column = column,
+          operator = operator,
+          values = values,
+          columnFunctions = columnFunctions,
+          valueFunctions = valueFunctions
         )
-      }
-      case multiple => {
-        val newVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
-        multiple.zipWithIndex.foreach { case (value, i) =>
-          val newVar = BindVariables.createWithUniqueName(bind ++ newVariables, column, value)
-          newVariables.append(newVar)
-        }
-
-        val exprColumn = withFunctions(column, columnFunctions, multiple.head)
-
-        val cond = s"$exprColumn $operation (%s)".format(
-          newVariables.map { bindVar =>
-            withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
-          }.mkString(", ")
-        )
-        this.copy(
-          conditions = conditions ++ Seq(cond),
-          bind = bind ++ newVariables
-        )
-      }
-    }
-  }
-
-  def or(
-          clauses: Seq[Query]
-        ): Query = {
+      )
+    )
   }
 
   def or(
@@ -233,7 +226,7 @@ case class Query(
   def and(
     clauses: Seq[String]
   ): Query = {
-    this.copy(conditions = conditions ++ clauses)
+    this.copy(conditions = conditions ++ clauses.map(QueryCondition.Static))
   }
 
   def and(
@@ -260,11 +253,14 @@ case class Query(
     value: T
   ): Query = {
     assert(
-      !bind.exists(_.name == name),
+      !explicitBindVariables.exists(_.name == name),
       s"Bind variable named '$name' already defined"
     )
-    BindVariables.create(name, value)
-    this
+    this.copy(
+      explicitBindVariables = explicitBindVariables ++ Seq(
+        BindVariable(name, value)
+      )
+    )
   }
 
   def bind[T](
@@ -405,7 +401,7 @@ case class Query(
     val query = conditions match {
       case Nil => base
       case conds => {
-        base + " where " + conds.mkString(" and ")
+        base + " where " + conds.map(toSql).mkString(" and ")
       }
     }
 
@@ -439,7 +435,7 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    bind.foldLeft(sql()) { case (query, bindVar) =>
+    allBindVariables().foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
           query.
@@ -475,6 +471,76 @@ case class Query(
     }
   }
 
+  private[this] def allBindVariables(): Seq[BindVariable[_]] = {
+    val all = scala.collection.mutable.ListBuffer[BindVariable[_]]()
+    val keys = scala.collection.mutable.Set[String]()
+    explicitBindVariables.map { b =>
+      all.append(b)
+      keys.add(b.name)
+    }
+
+    conditions.foreach {
+      case c: QueryCondition.Column[_] => {
+        c.values.foreach { value =>
+          all.append(
+            BindVariable(
+              name = uniqueName(keys.toSet, c.column),
+              value = value
+            )
+          )
+        }
+      }
+
+      case QueryCondition.Static(_) => // no bind variables
+    }
+
+    all
+  }
+
+  private[this] def toSql(condition: QueryCondition): String = {
+    condition match {
+      case c: QueryCondition.Column[_] => {
+        c.values.toList match {
+          case Nil => "false"
+          case one :: Nil => {
+            val bindVar = uniqueName(c.column)
+            val exprColumn = withFunctions(c.column, c.columnFunctions, one)
+            val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, one)
+          }
+          case multiple => {
+            sys.error("todo")
+          }
+        }
+      }
+
+      case QueryCondition.Static(expression) => expression
+    }
+  }
+
+  /**
+    * Generates a unique bind variable name from the specified input
+    *
+    * @param name Preferred name of bind variable - will be used if unique,
+    *             otherwise we generate a unique version.
+    */
+  private[this] def uniqueName(existing: Set[String], name: String): String = {
+    uniqueName(existing, name, 1)
+  }
+
+  @tailrec
+  private[this] def uniqueName(existing: Set[String], original: String, count: Int): String = {
+    assert(count >= 1)
+    val scrubbedName = BindVariable.safeName(
+      if (count == 1) { original } else { s"$original$count" }
+    )
+
+    if (existing.contains(scrubbedName)) {
+      uniqueName(existing, original, count + 1)
+    } else {
+      scrubbedName
+    }
+  }
+
   def as[T](
     parser: anorm.ResultSetParser[T]
   ) (
@@ -487,6 +553,7 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
+    val bind = allBindVariables()
     if (bind.isEmpty) {
       interpolate()
     } else {
@@ -506,7 +573,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(bind.map(_.toNamedParameter): _*)
+    SQL(sql()).on(allBindVariables().map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](
