@@ -64,7 +64,7 @@ case class BindVariables() {
     variable
   }
 }
-sealed trait BindVariable[T] {
+sealed trait BindVariable[T] extends Product with Serializable {
 
   def name: String
   def defaultValueFunctions: Seq[Query.Function] = Nil

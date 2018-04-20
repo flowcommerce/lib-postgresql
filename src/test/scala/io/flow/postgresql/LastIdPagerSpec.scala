@@ -18,6 +18,7 @@ class LastIdPagerSpec extends FunSpec with Matchers {
       {
         case None => Seq("*", "**")
         case Some(2L) => Nil
+        case other => sys.error(s"unexpected value: $other")
       },
       _.size
     )
@@ -35,6 +36,7 @@ class LastIdPagerSpec extends FunSpec with Matchers {
         case None => Seq("*", "**")
         case Some(2L) => Seq("****")
         case Some(4L) => Nil
+        case other => sys.error(s"unexpected value: $other")
       },
       _.size
     )
