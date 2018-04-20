@@ -172,20 +172,22 @@ case class Query(
         )
       }
       case multiple => {
-        val variables = multiple.map { value =>
-          BindVariables.createWithUniqueName(bind, column, value)
+        val newVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
+        multiple.zipWithIndex.foreach { case (value, i) =>
+          val newVar = BindVariables.createWithUniqueName(bind ++ newVariables, column, value)
+          newVariables.append(newVar)
         }
 
         val exprColumn = withFunctions(column, columnFunctions, multiple.head)
 
         val cond = s"$exprColumn $operation (%s)".format(
-          variables.map { bindVar =>
+          newVariables.map { bindVar =>
             withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
           }.mkString(", ")
         )
         this.copy(
           conditions = conditions ++ Seq(cond),
-          bind = bind ++ variables
+          bind = bind ++ newVariables
         )
       }
     }
