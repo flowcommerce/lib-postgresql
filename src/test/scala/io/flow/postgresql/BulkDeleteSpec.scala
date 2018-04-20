@@ -34,6 +34,7 @@ class BulkDeleteSpec extends FunSpec with Matchers {
     var found = scala.collection.mutable.ListBuffer[Int]()
 
     BulkDelete.byPage {
+      println("ADSFASDF")
       items
     } { e =>
       found += e

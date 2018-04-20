@@ -502,7 +502,7 @@ class QuerySpec extends FunSpec with Matchers {
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
-        ex.getMessage should be("assertion failed: Bind variable named 'email' already defined")
+        ex.getMessage should be("Bind variable named 'email' already defined")
       }
     }
   }
@@ -668,17 +668,6 @@ class QuerySpec extends FunSpec with Matchers {
         "Interpolated:",
         "select * from users where id = 5"
       ).mkString("\n")
-    )
-  }
-
-  it("queries that share bind variables (note status2 in bind key)") {
-    val a = Query("select * from users").equals("status", "live")
-    val b = Query("select id from users", bindVariables = a.bindVariables).equals("status", "draft")
-
-    validate(
-      a.and(s"id in (${b.sql()})"),
-      "select * from users where status = trim({status}) and id in (select id from users where status = trim({status2}))",
-      "select * from users where status = trim('live') and id in (select id from users where status = trim('draft'))"
     )
   }
 
