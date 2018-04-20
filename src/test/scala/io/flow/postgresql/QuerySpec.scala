@@ -671,4 +671,15 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("queries that share bind variables (note status2 in bind key)") {
+    val a = Query("select * from users").equals("status", "live")
+    val b = Query("select id from users", bindVariables = a.bindVariables).equals("status", "draft")
+
+    validate(
+      a.and(s"id in (${b.sql()})"),
+      "select * from users where status = trim({status}) and id in (select id from users where status = trim({status2}))",
+      "select * from users where status = trim('live') and id in (select id from users where status = trim('draft'))"
+    )
+  }
+
 }
