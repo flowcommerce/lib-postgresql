@@ -88,7 +88,7 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    val bindVar = BindVariables.createWithUniqueName(column, value)
+    val bindVar = BindVariables.createWithUniqueName(bind, column, value)
     val exprColumn = withFunctions(column, columnFunctions, value)
     val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
 
@@ -173,7 +173,7 @@ case class Query(
       }
       case multiple => {
         val variables = multiple.map { value =>
-          BindVariables.createWithUniqueName(column, value)
+          BindVariables.createWithUniqueName(bind, column, value)
         }
 
         val exprColumn = withFunctions(column, columnFunctions, multiple.head)

@@ -13,41 +13,39 @@ import scala.annotation.tailrec
   */
 object BindVariables {
 
-  private[this] val internalVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
-
   /**
     * Generates a unique bind variable name from the specified input
     *
     * @param name Preferred name of bind variable - will be used if unique,
     *             otherwise we generate a unique version.
     */
-  def uniqueName(name: String): String = {
-    uniqueName(name, 1)
+  def uniqueName(existing: Seq[BindVariable[_]], name: String): String = {
+    uniqueName(existing, name, 1)
   }
 
   @tailrec
-  private[this] def uniqueName(original: String, count: Int): String = {
+  private[this] def uniqueName(existing: Seq[BindVariable[_]], original: String, count: Int): String = {
     assert(count >= 1)
     val scrubbedName = BindVariable.safeName(
       if (count == 1) { original } else { s"$original$count" }
     )
 
-    if (internalVariables.exists(_.name == scrubbedName)) {
-      uniqueName(original, count + 1)
+    if (existing.exists(_.name == scrubbedName)) {
+      uniqueName(existing, original, count + 1)
     } else {
       scrubbedName
     }
   }
 
-  def createWithUniqueName(name: String, value: Any): BindVariable[_] = {
-    create(uniqueName(name), value)
+  def createWithUniqueName(existing: Seq[BindVariable[_]], name: String, value: Any): BindVariable[_] = {
+    create(uniqueName(existing, name), value)
   }
 
   /**
     * Creates a typed instances of a BindVariable for all types
     */
   def create(name: String, value: Any): BindVariable[_] = {
-    val variable = value match {
+    value match {
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
       case v: DateTime => BindVariable.DateTimeVar(name, v)
@@ -58,8 +56,6 @@ object BindVariables {
       case _: Unit => BindVariable.Unit(name)
       case _ => BindVariable.Str(name, value.toString)
     }
-    internalVariables.append(variable)
-    variable
   }
 }
 
