@@ -296,6 +296,9 @@ case class Query(
     )
   }
 
+  def isTrue(column: String): Query = boolean(column, true)
+  def isFalse(column: String): Query = boolean(column, false)
+
   def boolean(column: String, value: Option[Boolean]): Query = {
     value match {
       case None => this

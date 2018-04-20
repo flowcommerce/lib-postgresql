@@ -527,6 +527,22 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("isTrue") {
+    validate(
+      Query("select * from users").isTrue("users.verified"),
+      "select * from users where users.verified is true",
+      "select * from users where users.verified is true"
+    )
+  }
+
+  it("isFalse") {
+    validate(
+      Query("select * from users").isFalse("users.verified"),
+      "select * from users where users.verified is false",
+      "select * from users where users.verified is false"
+    )
+  }
+
   it("nullBoolean") {
     validate(
       Query("select * from users").nullBoolean("users.deleted_at", None),
