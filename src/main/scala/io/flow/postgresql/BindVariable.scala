@@ -5,6 +5,65 @@ import java.util.UUID
 import anorm.NamedParameter
 import org.joda.time.{DateTime, LocalDate}
 
+import scala.annotation.tailrec
+
+/**
+  * A container of bind variables used to generate unique,
+  * readable names for each bind variables.
+  */
+case class BindVariables() {
+
+  private[this] val internalVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
+
+  def variables(): Seq[BindVariable[_]] = internalVariables.toSeq
+
+  /**
+    * Generates a unique bind variable name from the specified input
+    *
+    * @param name Preferred name of bind variable - will be used if unique,
+    *             otherwise we generate a unique version.
+    */
+  def uniqueName(name: String): String = {
+    uniqueName(name, 1)
+  }
+
+  @tailrec
+  private[this] def uniqueName(original: String, count: Int): String = {
+    assert(count >= 1)
+    val scrubbedName = BindVariable.safeName(
+      if (count == 1) { original } else { s"$original$count" }
+    )
+
+    if (internalVariables.exists(_.name == scrubbedName)) {
+      uniqueName(original, count + 1)
+    } else {
+      scrubbedName
+    }
+  }
+
+  def addWithUniqueName(name: String, value: Any): BindVariable[_] = {
+    add(uniqueName(name), value)
+  }
+
+  /**
+    * Creates a typed instances of a BindVariable for all types
+    */
+  def add(name: String, value: Any): BindVariable[_] = {
+    val variable = value match {
+      case v: UUID => BindVariable.Uuid(name, v)
+      case v: LocalDate => BindVariable.DateVar(name, v)
+      case v: DateTime => BindVariable.DateTimeVar(name, v)
+      case v: Int => BindVariable.Int(name, v)
+      case v: Long => BindVariable.BigInt(name, v)
+      case v: Number => BindVariable.Num(name, v)
+      case v: String => BindVariable.Str(name, v)
+      case _: Unit => BindVariable.Unit(name)
+      case _ => BindVariable.Str(name, value.toString)
+    }
+    internalVariables.append(variable)
+    variable
+  }
+}
 sealed trait BindVariable[T] {
 
   def name: String
@@ -20,6 +79,33 @@ sealed trait BindVariable[T] {
 }
 
 object BindVariable {
+
+  private[this] val LeadingUnderscores = """^_+""".r
+  private[this] val MultiUnderscores = """__+""".r
+  private[this] val TrailingUnderscores = """_+$""".r
+  private[this] val ScrubName = """[^\w\d\_]""".r
+  private[this] val DefaultBindName = "bind"
+
+  def safeName(name: String): String = {
+    val idx = name.lastIndexOf(".")
+    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
+
+    val safeName = LeadingUnderscores.replaceAllIn(
+      TrailingUnderscores.replaceAllIn(
+        MultiUnderscores.replaceAllIn(
+          ScrubName.replaceAllIn(simpleName.trim, "_"),
+          "_"
+        ),
+        ""),
+      ""
+    )
+
+    if (safeName.isEmpty) {
+      DefaultBindName
+    } else {
+      safeName
+    }
+  }
 
   case class Int(override val name: String, override val value: _root_.scala.Int) extends BindVariable[_root_.scala.Int] {
     override val psqlType: Option[String] = Some("int")
@@ -61,31 +147,6 @@ object BindVariable {
     override val psqlType: Option[String] = None
     override val value: _root_.scala.Unit = ()
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
-  }
-
-  private[this] val LeadingUnderscores = """^_+""".r
-  private[this] val MultiUnderscores = """__+""".r
-  private[this] val TrailingUnderscores = """_+$""".r
-  private[this] val ScrubName = """[^\w\d\_]""".r
-
-  def safeName(name: String): String = {
-    val idx = name.lastIndexOf(".")
-    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
-
-    val safeName = LeadingUnderscores.replaceAllIn(
-      TrailingUnderscores.replaceAllIn(
-        MultiUnderscores.replaceAllIn(
-          ScrubName.replaceAllIn(simpleName.trim, "_"),
-          "_"
-        ),
-        ""),
-      ""
-    )
-
-    safeName match {
-      case "" => "bind"
-      case _ => safeName
-    }
   }
 
 }

@@ -32,13 +32,13 @@ object Query {
 case class Query(
   base: String,
   conditions: Seq[String] = Nil,
-  bind: Seq[BindVariable[_]] = Nil,
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
-  locking: Option[String] = None
+  locking: Option[String] = None,
+  bindVariables: BindVariables = BindVariables()
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -88,13 +88,12 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    val bindVar = toBindVariable(uniqueBindName(column), value)
+    val bindVar = bindVariables.addWithUniqueName(column, value)
     val exprColumn = withFunctions(column, columnFunctions, value)
     val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
 
     this.copy(
-      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
-      bind = bind ++ Seq(bindVar)
+      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue")
     )
   }
 
@@ -172,21 +171,19 @@ case class Query(
         )
       }
       case multiple => {
-        val bindVariables = multiple.zipWithIndex.map { case (value, i) =>
-          val n = if (i == 0) { column } else { s"${column}${i+1}" }
-          toBindVariable(uniqueBindName(n), value)
+        val variables = multiple.map { value =>
+          bindVariables.addWithUniqueName(column, value)
         }
 
         val exprColumn = withFunctions(column, columnFunctions, multiple.head)
 
         val cond = s"$exprColumn $operation (%s)".format(
-          bindVariables.map { bindVar =>
+          variables.map { bindVar =>
             withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
           }.mkString(", ")
         )
         this.copy(
-          conditions = conditions ++ Seq(cond),
-          bind = bind ++ bindVariables
+          conditions = conditions ++ Seq(cond)
         )
       }
     }
@@ -246,14 +243,12 @@ case class Query(
     name: String,
     value: T
   ): Query = {
-    bind.find(_.name == name) match {
-      case None => {
-        this.copy(bind = bind ++ Seq(toBindVariable(name, value)))
-      }
-      case Some(_) => {
-        sys.error(s"Bind variable named '$name' already defined")
-      }
-    }
+    assert(
+      !bindVariables.variables.exists(_.name == name),
+      s"Bind variable named '$name' already defined"
+    )
+    bindVariables.add(name, value)
+    this
   }
 
   def bind[T](
@@ -296,8 +291,8 @@ case class Query(
     )
   }
 
-  def isTrue(column: String): Query = boolean(column, true)
-  def isFalse(column: String): Query = boolean(column, false)
+  def isTrue(column: String): Query = boolean(column, value = true)
+  def isFalse(column: String): Query = boolean(column, value = false)
 
   def boolean(column: String, value: Option[Boolean]): Query = {
     value match {
@@ -428,9 +423,12 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    bind.foldLeft(sql()) { case (query, bindVar) =>
+    println(s"INTERPOLATE: ${bindVariables.variables.size}")
+    bindVariables.variables.foldLeft(sql()) { case (query, bindVar) =>
+      println(s"Bindvar class[${bindVar.getClass().getName}]: $bindVar")
       bindVar match {
         case BindVariable.Int(name, value) => {
+          println(s"name[$name] value[$value]")
           query.
             replace(bindVar.sql, value.toString).
             replace(s"{$name}", value.toString)
@@ -476,12 +474,12 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
-    if (bind.isEmpty) {
+    if (bindVariables.variables.isEmpty) {
       interpolate()
     } else {
       Seq(
         sql(),
-        bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        bindVariables.variables.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")
@@ -495,40 +493,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(bind.map(_.toNamedParameter): _*)
-  }
-
-
-  /**
-    * Generates a unique, as friendly as possible, bind variable name
-    */
-  private[this] def toBindVariable(name: String, value: Any): BindVariable[_] = {
-    value match {
-      case v: UUID => BindVariable.Uuid(name, v)
-      case v: LocalDate => BindVariable.DateVar(name, v)
-      case v: DateTime => BindVariable.DateTimeVar(name, v)
-      case v: Int => BindVariable.Int(name, v)
-      case v: Long => BindVariable.BigInt(name, v)
-      case v: Number => BindVariable.Num(name, v)
-      case v: String => BindVariable.Str(name, v)
-      case _: Unit => BindVariable.Unit(name)
-      case _ => BindVariable.Str(name, value.toString)
-    }
-  }
-
-  /**
-    * Generates a unique bind variable name from the specified input
-    *
-    * @param name Preferred name of bind variable - will be used if unique,
-    *             otherwise we generate a unique version.
-    */
-  def uniqueBindName(name: String): String = {
-    val safeName = BindVariable.safeName(name)
-
-    bind.find(_.name == safeName) match {
-      case Some(_) => uniqueBindName(s"${safeName}${bind.size + 1}")
-      case None => safeName
-    }
+    SQL(sql()).on(bindVariables.variables.map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](

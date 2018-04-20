@@ -502,7 +502,7 @@ class QuerySpec extends FunSpec with Matchers {
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
-        ex.getMessage should be("Bind variable named 'email' already defined")
+        ex.getMessage should be("assertion failed: Bind variable named 'email' already defined")
       }
     }
   }
