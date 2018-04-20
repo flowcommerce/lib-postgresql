@@ -124,12 +124,19 @@ case class Query(
   }
 
   def in[T](
-    column: String,
-    values: Seq[T],
-    columnFunctions: Seq[Query.Function] = Nil,
-    valueFunctions: Seq[Query.Function] = Nil
-  ): Query = {
+             column: String,
+             values: Seq[T],
+             columnFunctions: Seq[Query.Function] = Nil,
+             valueFunctions: Seq[Query.Function] = Nil
+           ): Query = {
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
+  }
+
+  def in[T](
+    column: String,
+    query: Query
+  ): Query = {
+
   }
 
   def optionalNotIn[T](
@@ -191,6 +198,11 @@ case class Query(
         )
       }
     }
+  }
+
+  def or(
+          clauses: Seq[Query]
+        ): Query = {
   }
 
   def or(
