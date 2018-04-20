@@ -46,6 +46,22 @@ object QueryCondition {
   case class Static(expression: String) extends QueryCondition
 }
 
+sealed trait BoundQueryCondition
+
+object BoundQueryCondition {
+
+  case class Static(expression: String) extends BoundQueryCondition
+
+  case class Column[T](
+    column: String,
+    operator: String,
+    variables: Seq[BindVariable[_]],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ) extends BoundQueryCondition
+
+}
+
 case class Query(
   base: String,
   conditions: Seq[QueryCondition] = Nil,
@@ -57,6 +73,31 @@ case class Query(
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil
 ) {
+
+  private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
+    val keys = scala.collection.mutable.Set[String]()
+    explicitBindVariables.map { b =>
+      keys.add(b.name)
+    }
+
+    conditions.map {
+      case c: QueryCondition.Column[_] => {
+        BoundQueryCondition.Column(
+          column = c.column,
+          operator = c.operator,
+          columnFunctions = c.columnFunctions,
+          valueFunctions = c.valueFunctions,
+          variables = c.values.map { value =>
+            val name = uniqueName(keys.toSet, c.column)
+            keys.add(name)
+            BindVariable(name, value)
+          }
+        )
+      }
+
+      case QueryCondition.Static(expression) => BoundQueryCondition.Static(expression)
+    }
+  }
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
@@ -398,7 +439,7 @@ case class Query(
     * Creates the full text of the sql query
     */
   def sql(): String = {
-    val query = conditions match {
+    val query = boundConditions match {
       case Nil => base
       case conds => {
         base + " where " + conds.map(toSql).mkString(" and ")
@@ -472,63 +513,48 @@ case class Query(
   }
 
   private[this] def allBindVariables(): Seq[BindVariable[_]] = {
-    val all = scala.collection.mutable.ListBuffer[BindVariable[_]]()
-    val keys = scala.collection.mutable.Set[String]()
-    explicitBindVariables.map { b =>
-      all.append(b)
-      keys.add(b.name)
+    explicitBindVariables ++ boundConditions.flatMap {
+      case c: BoundQueryCondition.Column[_] => c.variables
+      case BoundQueryCondition.Static(_) => Nil
     }
-
-    conditions.foreach {
-      case c: QueryCondition.Column[_] => {
-        c.values.foreach { value =>
-          all.append(
-            BindVariable(
-              name = uniqueName(keys.toSet, c.column),
-              value = value
-            )
-          )
-        }
-      }
-
-      case QueryCondition.Static(_) => // no bind variables
-    }
-
-    all
   }
 
-  private[this] def toSql(condition: QueryCondition): String = {
+  private[this] def toSql(condition: BoundQueryCondition): String = {
     condition match {
-      case c: QueryCondition.Column[_] => {
-        c.values.toList match {
-          case Nil => "false"
-          case one :: Nil => {
-            val bindVar = uniqueName(c.column)
-            val exprColumn = withFunctions(c.column, c.columnFunctions, one)
-            val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, one)
+      case c: BoundQueryCondition.Column[_] => {
+        c.variables.toList match {
+          case Nil => "false" // Intentionally match no rows on empty list
+
+          case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
+            val exprColumn = withFunctions(c.column, c.columnFunctions, bindVar.value)
+            val exprValue = withFunctions(bindVar.sql, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
+            s"$exprColumn ${c.operator} $exprValue"
           }
+
           case multiple => {
-            sys.error("todo")
+            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.head.value)
+
+            s"$exprColumn ${c.operator} (%s)".format(
+              multiple.map { bindVar =>
+                withFunctions(bindVar.sql, c.valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
+              }.mkString(", ")
+            )
           }
         }
       }
 
-      case QueryCondition.Static(expression) => expression
+      case BoundQueryCondition.Static(expression) => expression
     }
   }
 
   /**
     * Generates a unique bind variable name from the specified input
     *
-    * @param name Preferred name of bind variable - will be used if unique,
-    *             otherwise we generate a unique version.
+    * @param original Preferred name of bind variable - will be used if unique,
+    *                 otherwise we generate a unique version.
     */
-  private[this] def uniqueName(existing: Set[String], name: String): String = {
-    uniqueName(existing, name, 1)
-  }
-
   @tailrec
-  private[this] def uniqueName(existing: Set[String], original: String, count: Int): String = {
+  private[this] def uniqueName(existing: Set[String], original: String, count: Int = 1): String = {
     assert(count >= 1)
     val scrubbedName = BindVariable.safeName(
       if (count == 1) { original } else { s"$original$count" }

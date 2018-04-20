@@ -494,10 +494,20 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("nested bind variables work") {
+    validate(
+      Query("select * from users").
+        bind("user.email", "mike@flow.io").
+        bind("email", Some("paolo@flow.io")),
+      "select * from users where users.email = trim({email2})",
+      "select * from users where users.email = trim('mike@flow.io')"
+    )
+  }
+
   it("bind with duplicate variable name raises an error") {
     Try {
       Query("select * from users").
-        text("users.email", Some("mike@flow.io")).
+        bind("email", "mike@flow.io").
         bind("email", Some("paolo@flow.io"))
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
@@ -671,16 +681,15 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  /*TODO
   it("queries that share bind variables (note status2 in bind key)") {
     val experience = Query("select * from experiences")
     val liveFilter = Query("select id from experiences").equals("status", "draft")
     val draftFilter = Query("select id from experiences").equals("status", "live")
 
-
-
     validate(
       experience.copy(
-        bind = experience.bind ++ liveFilter.bind ++ draftFilter.bind
+        explicitBindVariables = experience.bind ++ liveFilter.bind ++ draftFilter.bind
       ).or(
         Seq(
           "experience.id in (${liveFilter.sql()})",
@@ -691,5 +700,6 @@ class QuerySpec extends FunSpec with Matchers {
       "select * from users where status = trim('live') and id in (select id from users where status = trim('draft'))"
     )
   }
+  */
 
 }

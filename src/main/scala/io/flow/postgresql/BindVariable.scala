@@ -26,6 +26,9 @@ object BindVariable {
     */
   def apply(name: String, value: Any): BindVariable[_] = {
     value match {
+      case Some(v) => apply(name, v)
+      case _: Unit | None => BindVariable.Unit(name)
+
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
       case v: DateTime => BindVariable.DateTimeVar(name, v)
@@ -33,7 +36,6 @@ object BindVariable {
       case v: Long => BindVariable.BigInt(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
-      case _: Unit => BindVariable.Unit(name)
       case _ => BindVariable.Str(name, value.toString)
     }
   }
@@ -101,9 +103,9 @@ object BindVariable {
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class Unit(override val name: String) extends BindVariable[_root_.scala.Unit] {
+  case class Unit(override val name: String) extends BindVariable[Option[_]] {
     override val psqlType: Option[String] = None
-    override val value: _root_.scala.Unit = ()
+    override val value: Option[_] = None
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 
