@@ -11,11 +11,9 @@ import scala.annotation.tailrec
   * A container of bind variables used to generate unique,
   * readable names for each bind variables.
   */
-case class BindVariables() {
+object BindVariables {
 
   private[this] val internalVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
-
-  def variables(): Seq[BindVariable[_]] = internalVariables
 
   /**
     * Generates a unique bind variable name from the specified input
@@ -41,14 +39,14 @@ case class BindVariables() {
     }
   }
 
-  def addWithUniqueName(name: String, value: Any): BindVariable[_] = {
-    add(uniqueName(name), value)
+  def createWithUniqueName(name: String, value: Any): BindVariable[_] = {
+    create(uniqueName(name), value)
   }
 
   /**
     * Creates a typed instances of a BindVariable for all types
     */
-  def add(name: String, value: Any): BindVariable[_] = {
+  def create(name: String, value: Any): BindVariable[_] = {
     val variable = value match {
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
@@ -64,6 +62,7 @@ case class BindVariables() {
     variable
   }
 }
+
 sealed trait BindVariable[T] extends Product with Serializable {
 
   def name: String

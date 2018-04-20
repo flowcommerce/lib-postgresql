@@ -38,7 +38,7 @@ case class Query(
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
   locking: Option[String] = None,
-  bindVariables: BindVariables = BindVariables()
+  bind: Seq[BindVariable[_]] = Nil
 ) {
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
@@ -88,12 +88,13 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    val bindVar = bindVariables.addWithUniqueName(column, value)
+    val bindVar = BindVariables.createWithUniqueName(column, value)
     val exprColumn = withFunctions(column, columnFunctions, value)
     val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
 
     this.copy(
-      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue")
+      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
+      bind = bind ++ Seq(bindVar)
     )
   }
 
@@ -172,7 +173,7 @@ case class Query(
       }
       case multiple => {
         val variables = multiple.map { value =>
-          bindVariables.addWithUniqueName(column, value)
+          BindVariables.createWithUniqueName(column, value)
         }
 
         val exprColumn = withFunctions(column, columnFunctions, multiple.head)
@@ -183,7 +184,8 @@ case class Query(
           }.mkString(", ")
         )
         this.copy(
-          conditions = conditions ++ Seq(cond)
+          conditions = conditions ++ Seq(cond),
+          bind = bind ++ variables
         )
       }
     }
@@ -244,10 +246,10 @@ case class Query(
     value: T
   ): Query = {
     assert(
-      !bindVariables.variables.exists(_.name == name),
+      !bind.exists(_.name == name),
       s"Bind variable named '$name' already defined"
     )
-    bindVariables.add(name, value)
+    BindVariables.create(name, value)
     this
   }
 
@@ -423,7 +425,7 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    bindVariables.variables.foldLeft(sql()) { case (query, bindVar) =>
+    bind.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
           query.
@@ -471,12 +473,12 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
-    if (bindVariables.variables.isEmpty) {
+    if (bind.isEmpty) {
       interpolate()
     } else {
       Seq(
         sql(),
-        bindVariables.variables.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")
@@ -490,7 +492,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(bindVariables.variables.map(_.toNamedParameter): _*)
+    SQL(sql()).on(bind.map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](
