@@ -15,7 +15,7 @@ case class BindVariables() {
 
   private[this] val internalVariables = scala.collection.mutable.ListBuffer[BindVariable[_]]()
 
-  def variables(): Seq[BindVariable[_]] = internalVariables.toSeq
+  def variables(): Seq[BindVariable[_]] = internalVariables
 
   /**
     * Generates a unique bind variable name from the specified input
