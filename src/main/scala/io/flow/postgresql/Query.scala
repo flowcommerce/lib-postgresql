@@ -423,12 +423,9 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    println(s"INTERPOLATE: ${bindVariables.variables.size}")
     bindVariables.variables.foldLeft(sql()) { case (query, bindVar) =>
-      println(s"Bindvar class[${bindVar.getClass().getName}]: $bindVar")
       bindVar match {
         case BindVariable.Int(name, value) => {
-          println(s"name[$name] value[$value]")
           query.
             replace(bindVar.sql, value.toString).
             replace(s"{$name}", value.toString)
