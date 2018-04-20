@@ -5,11 +5,11 @@ import java.util.UUID
 import anorm.NamedParameter
 import org.joda.time.{DateTime, LocalDate}
 
-sealed trait BindVariable {
+sealed trait BindVariable[T] {
 
   def name: String
   def defaultValueFunctions: Seq[Query.Function] = Nil
-  def value: Any
+  def value: T
   def toNamedParameter: NamedParameter
   def psqlType: Option[String]
 
@@ -21,45 +21,45 @@ sealed trait BindVariable {
 
 object BindVariable {
 
-  case class Int(override val name: String, override val value: Number) extends BindVariable {
+  case class Int(override val name: String, override val value: _root_.scala.Int) extends BindVariable[_root_.scala.Int] {
     override val psqlType: Option[String] = Some("int")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class BigInt(override val name: String, override val value: Number) extends BindVariable {
+  case class BigInt(override val name: String, override val value: Long) extends BindVariable[Long] {
     override val psqlType: Option[String] = Some("bigint")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class Num(override val name: String, override val value: Number) extends BindVariable {
+  case class Num(override val name: String, override val value: Number) extends BindVariable[Number] {
     override val psqlType: Option[String] = Some("numeric")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class Str(override val name: String, override val value: String) extends BindVariable {
+  case class Str(override val name: String, override val value: String) extends BindVariable[String] {
     override val psqlType: Option[String] = None
     override val defaultValueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
     override def toNamedParameter: NamedParameter = NamedParameter(name, value)
   }
 
-  case class Uuid(override val name: String, override val value: UUID) extends BindVariable {
+  case class Uuid(override val name: String, override val value: UUID) extends BindVariable[UUID] {
     override val psqlType: Option[String] = Some("uuid")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class DateVar(override val name: String, override val value: LocalDate) extends BindVariable {
+  case class DateVar(override val name: String, override val value: LocalDate) extends BindVariable[LocalDate] {
     override val psqlType: Option[String] = Some("date")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable {
+  case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable[DateTime] {
     override val psqlType: Option[String] = Some("timestamptz")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class Unit(override val name: String) extends BindVariable {
+  case class Unit(override val name: String) extends BindVariable[_root_.scala.Unit] {
     override val psqlType: Option[String] = None
-    override val value: Any = None
+    override val value: _root_.scala.Unit = ()
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 

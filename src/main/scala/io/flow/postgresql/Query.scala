@@ -32,7 +32,7 @@ object Query {
 case class Query(
   base: String,
   conditions: Seq[String] = Nil,
-  bind: Seq[BindVariable] = Nil,
+  bind: Seq[BindVariable[_]] = Nil,
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
@@ -502,7 +502,7 @@ case class Query(
   /**
     * Generates a unique, as friendly as possible, bind variable name
     */
-  private[this] def toBindVariable(name: String, value: Any): BindVariable = {
+  private[this] def toBindVariable(name: String, value: Any): BindVariable[_] = {
     value match {
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
