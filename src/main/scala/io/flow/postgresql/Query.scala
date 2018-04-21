@@ -150,8 +150,16 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    this.copy(
-      conditions = conditions ++ Seq(
+    val condition = value match {
+      case q: Query => {
+        QueryCondition.Subquery(
+          column = column,
+          operator = operator,
+          query = q,
+          columnFunctions = columnFunctions
+        )
+      }
+      case _ => {
         QueryCondition.Column(
           column = column,
           operator = operator,
@@ -159,7 +167,10 @@ case class Query(
           columnFunctions = columnFunctions,
           valueFunctions = valueFunctions
         )
-      )
+      }
+    }
+    this.copy(
+      conditions = conditions ++ Seq(condition)
     )
   }
 
@@ -188,6 +199,26 @@ case class Query(
     }
   }
 
+  def in(column: String, query: Query): Query = {
+    addSubquery(column, query, "in")
+  }
+
+  def notIn(column: String, query: Query): Query = {
+    addSubquery(column, query, "not in")
+  }
+
+  private[this] def addSubquery(column: String, query: Query, operator: String): Query = {
+    this.copy(
+      conditions = conditions ++ Seq(
+        QueryCondition.Subquery(
+          column = column,
+          operator = operator,
+          query = query
+        )
+      )
+    )
+  }
+
   def in[T](
     column: String,
     values: Seq[T],
@@ -195,17 +226,6 @@ case class Query(
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
-  }
-
-  def in[T](
-    column: String,
-    subquery: Query
-  ): Query = {
-    this.copy(
-      conditions = conditions ++ Seq(
-        QueryCondition.Subquery(column, subquery)
-      )
-    )
   }
 
   def optionalNotIn[T](
@@ -560,8 +580,9 @@ case class Query(
 
       case BoundQueryCondition.Static(expression) => expression
 
-      case BoundQueryCondition.Subquery(column, query) => {
-        s"$column in (${query.sql()})"
+      case c: BoundQueryCondition.Subquery => {
+        val exprColumn = withFunctions(c.column, c.columnFunctions, "TODO")
+        s"$exprColumn ${c.operator} (${c.query.sql()})"
       }
     }
   }

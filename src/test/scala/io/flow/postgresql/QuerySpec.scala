@@ -38,6 +38,17 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("equals with subquery") {
+    validate(
+      Query("select * from experiences").equals(
+        "id",
+        Query("select id from experiences").equals("status", "draft")
+      ),
+      "select * from experiences where id = (select id from experiences where status = trim({status}))",
+      "select * from experiences where id = (select id from experiences where status = trim('draft'))"
+    )
+  }
+
   it("equalsIgnoreCase") {
     validate(
       Query("select * from users").equalsIgnoreCase("id", Some(5)),
@@ -699,6 +710,17 @@ class QuerySpec extends FunSpec with Matchers {
         "Interpolated:",
         "select * from users where id = 5"
       ).mkString("\n")
+    )
+  }
+
+  it("not in with subquery") {
+    val experience = Query("select * from experiences").equals("status", "live")
+    val filter = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.notIn("id", filter),
+      "select * from experiences where status = trim({status}) and id not in (select id from experiences where status = trim({status2}))",
+      "select * from experiences where status = trim('live') and id not in (select id from experiences where status = trim('draft'))"
     )
   }
 

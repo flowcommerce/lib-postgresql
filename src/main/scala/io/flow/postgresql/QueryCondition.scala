@@ -33,15 +33,22 @@ object QueryCondition {
 
   case class Static(expression: String) extends QueryCondition
 
-  case class Subquery(column: String, query: Query) extends QueryCondition {
+  case class Subquery(
+    column: String,
+    operator: String,
+    query: Query,
+    columnFunctions: Seq[Query.Function] = Nil
+  ) extends QueryCondition {
     def bind(reservedKeys: Set[String]): BoundQueryCondition.Subquery = {
       BoundQueryCondition.Subquery(
-        column,
-        query.copy(
+        column = column,
+        operator = operator,
+        query = query.copy(
           explicitBindVariables = query.explicitBindVariables ++ reservedKeys.map { key =>
             BindVariable(key, ()) // Reserve the keys previously allocated
           }
-        )
+        ),
+        columnFunctions = columnFunctions
       )
     }
   }
@@ -81,6 +88,11 @@ object BoundQueryCondition {
 
   case class Static(expression: String) extends BoundQueryCondition
 
-  case class Subquery(column: String, query: Query) extends BoundQueryCondition
+  case class Subquery(
+    column: String,
+    operator: String,
+    query: Query,
+    columnFunctions: Seq[Query.Function] = Nil
+  ) extends BoundQueryCondition
 
 }
