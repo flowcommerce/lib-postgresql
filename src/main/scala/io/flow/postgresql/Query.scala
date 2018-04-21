@@ -5,8 +5,6 @@ import java.util.UUID
 import anorm._
 import org.joda.time.{DateTime, LocalDate}
 
-import scala.annotation.tailrec
-
 object Query {
 
   trait Function
