@@ -51,13 +51,17 @@ case class Query(
     )
   }
 
+  /**
+    * Recursively bind all the variables. Primary use case is to
+    * make sure all subquery bind variables are namespaces properly
+    */
   @tailrec
   private[this] def resolveBoundConditions(
     reservedKeys: Set[String],
     remaining: Seq[QueryCondition],
     resolved: Seq[BoundQueryCondition]
   ): Seq[BoundQueryCondition] = {
-    conditions.toList match {
+    remaining.toList match {
       case Nil => resolved
       case one :: rest => {
         one match {
@@ -78,11 +82,12 @@ case class Query(
             )
           }
 
-          case QueryCondition.Subquery(column, query) => {
+          case c: QueryCondition.Subquery => {
+            val subquery = c.bind(reservedKeys)
             resolveBoundConditions(
-              reservedKeys = reservedKeys,
+              reservedKeys = reservedKeys ++ subquery.query.explicitBindVariables.map(_.name).toSet,
               remaining = rest,
-              resolved = resolved ++ Seq(BoundQueryCondition.Subquery(column, query))
+              resolved = resolved ++ Seq(subquery)
             )
           }
         }

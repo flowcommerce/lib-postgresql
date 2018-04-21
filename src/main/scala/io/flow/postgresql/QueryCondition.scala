@@ -2,9 +2,7 @@ package io.flow.postgresql
 
 import scala.annotation.tailrec
 
-sealed trait QueryCondition {
-  def bind(reservedKeys: Set[String]): BoundQueryCondition
-}
+sealed trait QueryCondition
 
 object QueryCondition {
 
@@ -16,7 +14,7 @@ object QueryCondition {
     valueFunctions: Seq[Query.Function] = Nil
   ) extends QueryCondition {
 
-    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Column = {
+    def bind(reservedKeys: Set[String]): BoundQueryCondition.Column = {
       val allocated = scala.collection.mutable.Set[String]()
       BoundQueryCondition.Column(
         column = column,
@@ -33,15 +31,18 @@ object QueryCondition {
 
   }
 
-  case class Static(expression: String) extends QueryCondition {
-    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Static = {
-      BoundQueryCondition.Static(expression)
-    }
-  }
+  case class Static(expression: String) extends QueryCondition
 
   case class Subquery(column: String, query: Query) extends QueryCondition {
-    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Subquery = {
-      BoundQueryCondition.Subquery(column, query)
+    def bind(reservedKeys: Set[String]): BoundQueryCondition.Subquery = {
+      BoundQueryCondition.Subquery(
+        column,
+        query.copy(
+          explicitBindVariables = query.explicitBindVariables ++ reservedKeys.map { key =>
+            BindVariable(key, ()) // Reserve the keys previously allocated
+          }
+        )
+      )
     }
   }
 
