@@ -99,6 +99,13 @@ case class Query(
     }
   }
 
+  private[this] lazy val allBindVariables: Seq[BindVariable[_]] = {
+    explicitBindVariables ++ boundConditions.flatMap {
+      case c: BoundQueryCondition.Column => c.variables
+      case BoundQueryCondition.Static(_) => Nil
+    }
+  }
+
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
 
@@ -483,7 +490,7 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    allBindVariables().foldLeft(sql()) { case (query, bindVar) =>
+    allBindVariables.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
           query.
@@ -516,13 +523,6 @@ case class Query(
           query.replace(bindVar.sqlPlaceholder, "null")
         }
       }
-    }
-  }
-
-  private[this] def allBindVariables(): Seq[BindVariable[_]] = {
-    explicitBindVariables ++ boundConditions.flatMap {
-      case c: BoundQueryCondition.Column => c.variables
-      case BoundQueryCondition.Static(_) => Nil
     }
   }
 
@@ -586,7 +586,7 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
-    val bind = allBindVariables()
+    val bind = allBindVariables
     if (bind.isEmpty) {
       interpolate()
     } else {
@@ -606,7 +606,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(allBindVariables().map(_.toNamedParameter): _*)
+    SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](
