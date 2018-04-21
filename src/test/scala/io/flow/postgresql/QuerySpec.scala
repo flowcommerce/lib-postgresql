@@ -747,25 +747,21 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  /*TODO
-  it("queries that share bind variables (note status2 in bind key)") {
+  it("or with subqueries") {
     val experience = Query("select * from experiences")
-    val liveFilter = Query("select id from experiences").equals("status", "draft")
-    val draftFilter = Query("select id from experiences").equals("status", "live")
+    val filter1 = Query("select id from experiences").equals("status", "draft")
+    val filter2 = Query("select id from experiences").equals("status", "live")
 
     validate(
-      experience.copy(
-        explicitBindVariables = experience.bind ++ liveFilter.bind ++ draftFilter.bind
-      ).or(
+      experience.or(
         Seq(
-          "experience.id in (${liveFilter.sql()})",
-          "experience.id in (${draftFilter.sql()})"
+          s"experience.id in (${filter1.sql()})",
+          s"experience.id in (${filter2.sql()})"
         )
       ),
       "select * from users where status = trim({status}) and id in (select id from users where status = trim({status2}))",
       "select * from users where status = trim('live') and id in (select id from users where status = trim('draft'))"
     )
   }
-  */
 
 }
