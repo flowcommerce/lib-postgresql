@@ -297,6 +297,13 @@ case class Query(
       !explicitBindVariables.exists(_.name == name),
       s"Bind variable named '$name' already defined"
     )
+    val safe = BindVariable.safeName(name)
+    assert(
+      safe == name,
+      s"Invalid bind variable name[$name]" + (
+        if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
+      )
+    )
     this.copy(
       explicitBindVariables = explicitBindVariables ++ Seq(
         BindVariable(name, value)

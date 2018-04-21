@@ -5,8 +5,6 @@ import java.util.UUID
 import anorm.NamedParameter
 import org.joda.time.{DateTime, LocalDate}
 
-import scala.runtime.BoxedUnit
-
 sealed trait BindVariable[T] extends Product with Serializable {
 
   def name: String
@@ -22,6 +20,8 @@ sealed trait BindVariable[T] extends Product with Serializable {
 }
 
 object BindVariable {
+
+  val DefaultBindName = "bind"
 
   /**
     * Creates a typed instances of a BindVariable for all types
@@ -48,7 +48,6 @@ object BindVariable {
   private[this] val MultiUnderscores = """__+""".r
   private[this] val TrailingUnderscores = """_+$""".r
   private[this] val ScrubName = """[^\w\d\_]""".r
-  private[this] val DefaultBindName = "bind"
 
   def safeName(name: String): String = {
     val idx = name.lastIndexOf(".")
@@ -108,7 +107,7 @@ object BindVariable {
   }
 
   case class Unit(override val name: String) extends BindVariable[scala.Unit] {
-    override def value = sys.error(s"Value not supported for unit type")
+    override def value: scala.Unit = sys.error(s"Value not supported for unit type")
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 

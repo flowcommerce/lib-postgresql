@@ -497,9 +497,9 @@ class QuerySpec extends FunSpec with Matchers {
   it("nested bind variables work") {
     validate(
       Query("select * from users where email = {email}").
-        bind("user.email", "mike@flow.io"),
-      "select * from users where users.email = trim({email})",
-      "select * from users where users.email = trim('mike@flow.io')"
+        bind("email", "mike@flow.io"),
+      "select * from users where email = {email}",
+      "select * from users where email = 'mike@flow.io'"
     )
   }
 
@@ -512,6 +512,28 @@ class QuerySpec extends FunSpec with Matchers {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
         ex.getMessage should be("assertion failed: Bind variable named 'email' already defined")
+      }
+    }
+  }
+
+  it("bind validates name is safe") {
+    Try {
+      Query("select * from users").
+        bind("!@#", "mike@flow.io")
+    } match {
+      case Success(_) => fail("Expected error for duplicate bind variable")
+      case Failure(ex) => {
+        ex.getMessage should be("assertion failed: Invalid bind variable name[!@#]")
+      }
+    }
+
+    Try {
+      Query("select * from users").
+        bind("user.email", "mike@flow.io")
+    } match {
+      case Success(_) => fail("Expected error for duplicate bind variable")
+      case Failure(ex) => {
+        ex.getMessage should be("assertion failed: Invalid bind variable name[user.email] suggest: email")
       }
     }
   }
