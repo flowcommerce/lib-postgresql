@@ -480,33 +480,33 @@ case class Query(
       bindVar match {
         case BindVariable.Int(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.BigInt(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.Num(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.Uuid(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::uuid")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::uuid")
         }
         case BindVariable.DateVar(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::date")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::date")
         }
         case BindVariable.DateTimeVar(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::timestamptz")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::timestamptz")
         }
         case BindVariable.Str(_, value) => {
-          query.replace(bindVar.sql, s"'$value'")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'")
         }
         case BindVariable.Unit(_) => {
-          query.replace(bindVar.sql, "null")
+          query.replace(bindVar.sqlPlaceholder, "null")
         }
       }
     }
@@ -527,7 +527,7 @@ case class Query(
 
           case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
             val exprColumn = withFunctions(c.column, c.columnFunctions, bindVar.value)
-            val exprValue = withFunctions(bindVar.sql, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
+            val exprValue = withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
             s"$exprColumn ${c.operator} $exprValue"
           }
 
@@ -536,7 +536,7 @@ case class Query(
 
             s"$exprColumn ${c.operator} (%s)".format(
               multiple.map { bindVar =>
-                withFunctions(bindVar.sql, c.valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
+                withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
               }.mkString(", ")
             )
           }

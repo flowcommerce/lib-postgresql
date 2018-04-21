@@ -5,15 +5,17 @@ import java.util.UUID
 import anorm.NamedParameter
 import org.joda.time.{DateTime, LocalDate}
 
+import scala.runtime.BoxedUnit
+
 sealed trait BindVariable[T] extends Product with Serializable {
 
   def name: String
-  def defaultValueFunctions: Seq[Query.Function] = Nil
   def value: T
   def toNamedParameter: NamedParameter
-  def psqlType: Option[String]
+  def defaultValueFunctions: Seq[Query.Function] = Nil
+  def psqlType: Option[String] = None
 
-  final def sql: String = psqlType match {
+  final def sqlPlaceholder: String = psqlType match {
     case None => s"{$name}"
     case Some(t) => s"{$name}::$t"
   }
@@ -32,10 +34,12 @@ object BindVariable {
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
       case v: DateTime => BindVariable.DateTimeVar(name, v)
-      case v: _root_.scala.Int => BindVariable.Int(name, v)
+      case v: scala.Int => BindVariable.Int(name, v)
       case v: Long => BindVariable.BigInt(name, v)
       case v: Number => BindVariable.Num(name, v)
       case v: String => BindVariable.Str(name, v)
+      // TODO: why is this not caught by Unit matcher above?
+      case v if v.toString == "()" => BindVariable.Unit(name)
       case _ => BindVariable.Str(name, value.toString)
     }
   }
@@ -67,7 +71,7 @@ object BindVariable {
     }
   }
 
-  case class Int(override val name: String, override val value: _root_.scala.Int) extends BindVariable[_root_.scala.Int] {
+  case class Int(override val name: String, override val value: scala.Int) extends BindVariable[scala.Int] {
     override val psqlType: Option[String] = Some("int")
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
@@ -83,9 +87,9 @@ object BindVariable {
   }
 
   case class Str(override val name: String, override val value: String) extends BindVariable[String] {
-    override val psqlType: Option[String] = None
     override val defaultValueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
     override def toNamedParameter: NamedParameter = NamedParameter(name, value)
+    println(s"STRING: $name value:$value")
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable[UUID] {
@@ -103,9 +107,8 @@ object BindVariable {
     override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
   }
 
-  case class Unit(override val name: String) extends BindVariable[Option[_]] {
-    override val psqlType: Option[String] = None
-    override val value: Option[_] = None
+  case class Unit(override val name: String) extends BindVariable[scala.Unit] {
+    override def value = sys.error(s"Value not supported for unit type")
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 

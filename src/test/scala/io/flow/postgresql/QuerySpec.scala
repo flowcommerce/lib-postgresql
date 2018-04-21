@@ -496,10 +496,9 @@ class QuerySpec extends FunSpec with Matchers {
 
   it("nested bind variables work") {
     validate(
-      Query("select * from users").
-        bind("user.email", "mike@flow.io").
-        bind("email", Some("paolo@flow.io")),
-      "select * from users where users.email = trim({email2})",
+      Query("select * from users where email = {email}").
+        bind("user.email", "mike@flow.io"),
+      "select * from users where users.email = trim({email})",
       "select * from users where users.email = trim('mike@flow.io')"
     )
   }
