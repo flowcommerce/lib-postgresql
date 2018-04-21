@@ -44,13 +44,14 @@ object QueryCondition {
   ) extends QueryCondition
 
   case class Static(expression: String) extends QueryCondition
+
+  case class Subquery(column: String, query: Query) extends QueryCondition
+
 }
 
 sealed trait BoundQueryCondition
 
 object BoundQueryCondition {
-
-  case class Static(expression: String) extends BoundQueryCondition
 
   case class Column(
     column: String,
@@ -59,6 +60,10 @@ object BoundQueryCondition {
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ) extends BoundQueryCondition
+
+  case class Static(expression: String) extends BoundQueryCondition
+
+  case class Subquery(column: String, query: Query) extends BoundQueryCondition
 
 }
 
@@ -95,14 +100,21 @@ case class Query(
         )
       }
 
-      case QueryCondition.Static(expression) => BoundQueryCondition.Static(expression)
+      case QueryCondition.Static(expression) => {
+        BoundQueryCondition.Static(expression)
+      }
+
+      case QueryCondition.Subquery(column, query) => {
+        BoundQueryCondition.Subquery(column, query)
+      }
     }
   }
 
-  private[this] lazy val allBindVariables: Seq[BindVariable[_]] = {
+  private lazy val allBindVariables: Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
       case c: BoundQueryCondition.Column => c.variables
       case BoundQueryCondition.Static(_) => Nil
+      case c: BoundQueryCondition.Subquery => c.query.allBindVariables
     }
   }
 
@@ -192,12 +204,23 @@ case class Query(
   }
 
   def in[T](
-             column: String,
-             values: Seq[T],
-             columnFunctions: Seq[Query.Function] = Nil,
-             valueFunctions: Seq[Query.Function] = Nil
-           ): Query = {
+    column: String,
+    values: Seq[T],
+    columnFunctions: Seq[Query.Function] = Nil,
+    valueFunctions: Seq[Query.Function] = Nil
+  ): Query = {
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
+  }
+
+  def in[T](
+    column: String,
+    subquery: Query
+  ): Query = {
+    this.copy(
+      conditions = conditions ++ Seq(
+        QueryCondition.Subquery(column, subquery)
+      )
+    )
   }
 
   def optionalNotIn[T](
@@ -551,6 +574,10 @@ case class Query(
       }
 
       case BoundQueryCondition.Static(expression) => expression
+
+      case BoundQueryCondition.Subquery(column, query) => {
+        s"$column in (${query.sql()})"
+      }
     }
   }
 

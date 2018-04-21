@@ -702,6 +702,17 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("in with subquery") {
+    val experience = Query("select * from experiences").equals("status", "live")
+    val liveFilter = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.in("id", liveFilter),
+      "select * from experiences where status = trim({status}) and id in (select id from experiences where status = trim({status2}))",
+      "select * from experiences where status = trim('live') and id in (select id from experiences where status = trim('draft'))"
+    )
+  }
+
   /*TODO
   it("queries that share bind variables (note status2 in bind key)") {
     val experience = Query("select * from experiences")
