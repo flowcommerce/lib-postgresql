@@ -31,7 +31,9 @@ object Query {
 
 }
 
-sealed trait QueryCondition
+sealed trait QueryCondition {
+  def bind(reservedKeys: Set[String]): BoundQueryCondition
+}
 
 object QueryCondition {
 
@@ -41,12 +43,56 @@ object QueryCondition {
     values: Seq[T],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
-  ) extends QueryCondition
+  ) extends QueryCondition {
 
-  case class Static(expression: String) extends QueryCondition
+    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Column = {
+      val allocated = scala.collection.mutable.Set[String]()
+      BoundQueryCondition.Column(
+        column = column,
+        operator = operator,
+        columnFunctions = columnFunctions,
+        valueFunctions = valueFunctions,
+        variables = values.map { value =>
+          val name = uniqueName(reservedKeys ++ allocated, column)
+          allocated.add(name)
+          BindVariable(name, value)
+        }
+      )
+    }
 
-  case class Subquery(column: String, query: Query) extends QueryCondition
+  }
 
+  case class Static(expression: String) extends QueryCondition {
+    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Static = {
+      BoundQueryCondition.Static(expression)
+    }
+  }
+
+  case class Subquery(column: String, query: Query) extends QueryCondition {
+    override def bind(reservedKeys: Set[String]): BoundQueryCondition.Subquery = {
+      BoundQueryCondition.Subquery(column, query)
+    }
+  }
+
+  /**
+    * Generates a unique bind variable name from the specified input
+    *
+    * @param original Preferred name of bind variable - will be used if unique,
+    *                 otherwise we generate a unique version.
+    */
+  @tailrec
+  private[this] def uniqueName(reservedKeys: Set[String], original: String, count: Int = 1): String = {
+    assert(count >= 1)
+    val scrubbedName = BindVariable.safeName(
+      if (count == 1) { original } else { s"$original$count" }
+    )
+
+    if (reservedKeys.contains(scrubbedName)) {
+      uniqueName(reservedKeys, original, count + 1)
+    } else {
+      scrubbedName
+    }
+  }
 }
 
 sealed trait BoundQueryCondition
@@ -80,32 +126,48 @@ case class Query(
 ) {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
-    val keys = scala.collection.mutable.Set[String]()
-    explicitBindVariables.map { b =>
-      keys.add(b.name)
-    }
+    resolveBoundConditions(
+      reservedKeys = explicitBindVariables.map(_.name).toSet,
+      remaining = conditions,
+      resolved = Nil
+    )
+  }
 
-    conditions.map {
-      case c: QueryCondition.Column[_] => {
-        BoundQueryCondition.Column(
-          column = c.column,
-          operator = c.operator,
-          columnFunctions = c.columnFunctions,
-          valueFunctions = c.valueFunctions,
-          variables = c.values.map { value =>
-            val name = uniqueName(keys.toSet, c.column)
-            keys.add(name)
-            BindVariable(name, value)
+  @tailrec
+  private[this] def resolveBoundConditions(
+    reservedKeys: Set[String],
+    remaining: Seq[QueryCondition],
+    resolved: Seq[BoundQueryCondition]
+  ): Seq[BoundQueryCondition] = {
+    conditions.toList match {
+      case Nil => resolved
+      case one :: rest => {
+        one match {
+          case c: QueryCondition.Column[_] => {
+            val newCondition = c.bind(reservedKeys)
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newCondition.variables.map(_.name).toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(newCondition)
+            )
           }
-        )
-      }
 
-      case QueryCondition.Static(expression) => {
-        BoundQueryCondition.Static(expression)
-      }
+          case QueryCondition.Static(expression) => {
+            resolveBoundConditions(
+              reservedKeys = reservedKeys,
+              remaining = rest,
+              resolved = resolved ++ Seq(BoundQueryCondition.Static(expression))
+            )
+          }
 
-      case QueryCondition.Subquery(column, query) => {
-        BoundQueryCondition.Subquery(column, query)
+          case QueryCondition.Subquery(column, query) => {
+            resolveBoundConditions(
+              reservedKeys = reservedKeys,
+              remaining = rest,
+              resolved = resolved ++ Seq(BoundQueryCondition.Subquery(column, query))
+            )
+          }
+        }
       }
     }
   }
@@ -578,26 +640,6 @@ case class Query(
       case BoundQueryCondition.Subquery(column, query) => {
         s"$column in (${query.sql()})"
       }
-    }
-  }
-
-  /**
-    * Generates a unique bind variable name from the specified input
-    *
-    * @param original Preferred name of bind variable - will be used if unique,
-    *                 otherwise we generate a unique version.
-    */
-  @tailrec
-  private[this] def uniqueName(existing: Set[String], original: String, count: Int = 1): String = {
-    assert(count >= 1)
-    val scrubbedName = BindVariable.safeName(
-      if (count == 1) { original } else { s"$original$count" }
-    )
-
-    if (existing.contains(scrubbedName)) {
-      uniqueName(existing, original, count + 1)
-    } else {
-      scrubbedName
     }
   }
 
