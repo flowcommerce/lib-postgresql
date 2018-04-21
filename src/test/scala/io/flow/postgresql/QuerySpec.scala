@@ -779,4 +779,22 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("bind variables are NOT shared across query invocations") {
+    // A prior change resulted in query bind variables being
+    // shared across instances.
+    val query = Query("select * from users")
+
+    validate(
+      query.equals("status", "draft"),
+      "select * from users where status = trim({status})",
+      "select * from users where status = trim('draft')"
+    )
+
+    validate(
+      query.equals("status", "live"),
+      "select * from users where status = trim({status})",
+      "select * from users where status = trim('live')"
+    )
+  }
+
 }
