@@ -52,7 +52,7 @@ object BoundQueryCondition {
 
   case class Static(expression: String) extends BoundQueryCondition
 
-  case class Column[T](
+  case class Column(
     column: String,
     operator: String,
     variables: Seq[BindVariable[_]],
@@ -521,14 +521,14 @@ case class Query(
 
   private[this] def allBindVariables(): Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
-      case c: BoundQueryCondition.Column[_] => c.variables
+      case c: BoundQueryCondition.Column => c.variables
       case BoundQueryCondition.Static(_) => Nil
     }
   }
 
   private[this] def toSql(condition: BoundQueryCondition): String = {
     condition match {
-      case c: BoundQueryCondition.Column[_] => {
+      case c: BoundQueryCondition.Column => {
         c.variables.toList match {
           case Nil => "false" // Intentionally match no rows on empty list
 
