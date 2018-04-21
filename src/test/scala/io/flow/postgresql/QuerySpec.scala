@@ -38,6 +38,17 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("equals with subquery") {
+    validate(
+      Query("select * from experiences").equals(
+        "id",
+        Query("select id from experiences").equals("status", "draft")
+      ),
+      "select * from experiences where id = (select id from experiences where status = trim({status}))",
+      "select * from experiences where id = (select id from experiences where status = trim('draft'))"
+    )
+  }
+
   it("equalsIgnoreCase") {
     validate(
       Query("select * from users").equalsIgnoreCase("id", Some(5)),
@@ -494,15 +505,46 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("nested bind variables work") {
+    validate(
+      Query("select * from users where email = {email}").
+        bind("email", "mike@flow.io"),
+      "select * from users where email = {email}",
+      "select * from users where email = 'mike@flow.io'"
+    )
+  }
+
   it("bind with duplicate variable name raises an error") {
     Try {
       Query("select * from users").
-        text("users.email", Some("mike@flow.io")).
-        bind("email", Some("paolo@flow.io"))
+        bind("email", "mike@flow.io").
+        bind("EMAIL", Some("paolo@flow.io"))
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
-        ex.getMessage should be("Bind variable named 'email' already defined")
+        ex.getMessage should be("assertion failed: Bind variable named 'EMAIL' already defined")
+      }
+    }
+  }
+
+  it("bind validates name is safe") {
+    Try {
+      Query("select * from users").
+        bind("!@#", "mike@flow.io")
+    } match {
+      case Success(_) => fail("Expected error for duplicate bind variable")
+      case Failure(ex) => {
+        ex.getMessage should be("assertion failed: Invalid bind variable name[!@#]")
+      }
+    }
+
+    Try {
+      Query("select * from users").
+        bind("user.email", "mike@flow.io")
+    } match {
+      case Success(_) => fail("Expected error for duplicate bind variable")
+      case Failure(ex) => {
+        ex.getMessage should be("assertion failed: Invalid bind variable name[user.email] suggest: email")
       }
     }
   }
@@ -668,6 +710,72 @@ class QuerySpec extends FunSpec with Matchers {
         "Interpolated:",
         "select * from users where id = 5"
       ).mkString("\n")
+    )
+  }
+
+  it("not in with subquery") {
+    val experience = Query("select * from experiences").equals("status", "live")
+    val filter = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.notIn("id", filter),
+      "select * from experiences where status = trim({status}) and id not in (select id from experiences where status = trim({status2}))",
+      "select * from experiences where status = trim('live') and id not in (select id from experiences where status = trim('draft'))"
+    )
+  }
+
+  it("in with subquery") {
+    val experience = Query("select * from experiences").equals("status", "live")
+    val filter = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.in("id", filter),
+      "select * from experiences where status = trim({status}) and id in (select id from experiences where status = trim({status2}))",
+      "select * from experiences where status = trim('live') and id in (select id from experiences where status = trim('draft'))"
+    )
+  }
+
+  it("in with multiple subqueries") {
+    val experience = Query("select * from experiences")
+    val filter1 = Query("select id from experiences").equals("status", "draft")
+    val filter2 = Query("select id from experiences").equals("status", "live")
+
+    validate(
+      experience.in("id", filter1).in("id", filter2),
+      "select * from experiences where id in (select id from experiences where status = trim({status})) and id in (select id from experiences where status = trim({status2}))",
+      "select * from experiences where id in (select id from experiences where status = trim('draft')) and id in (select id from experiences where status = trim('live'))"
+    )
+  }
+
+  it("or with single subquery") {
+    val experience = Query("select * from experiences")
+    val filter1 = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.orClause(
+        Seq(
+          QueryCondition.Subquery("id", filter1)
+        )
+      ),
+      "select * from experiences where id in (select id from experiences where status = trim({status}))",
+      "select * from experiences where id in (select id from experiences where status = trim('draft'))"
+    )
+  }
+
+  it("or with multiple subqueries") {
+    val experience = Query("select * from experiences")
+    val filter1 = Query("select id from experiences").equals("status", "draft")
+    val filter2 = Query("select id from experiences").equals("status", "live")
+
+    validate(
+      experience.orClause(
+        Seq(
+          QueryCondition.Subquery("id", filter1),
+          QueryCondition.Subquery("id", filter2)
+        )
+      ),
+      "select * from experiences where (id in (select id from experiences where status = trim({status})) or id in (select id from experiences where status = trim({status2})))",
+      "select * from experiences where (id in (select id from experiences where status = trim('draft')) or id in (select id from experiences where status = trim('live')))"
     )
   }
 

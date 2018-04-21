@@ -31,15 +31,97 @@ object Query {
 
 case class Query(
   base: String,
-  conditions: Seq[String] = Nil,
-  bind: Seq[BindVariable] = Nil,
+  conditions: Seq[QueryCondition] = Nil,
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
-  locking: Option[String] = None
+  locking: Option[String] = None,
+  explicitBindVariables: Seq[BindVariable[_]] = Nil
 ) {
+
+  private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
+    resolveBoundConditions(
+      reservedKeys = explicitBindVariables.map(_.name).toSet,
+      remaining = conditions,
+      resolved = Nil
+    )
+  }
+
+  /**
+    * Recursively bind all the variables. Primary use case is to
+    * make sure all subquery bind variables are namespaces properly
+    */
+  private[this] def resolveBoundConditions(
+    reservedKeys: Set[String],
+    remaining: Seq[QueryCondition],
+    resolved: Seq[BoundQueryCondition]
+  ): Seq[BoundQueryCondition] = {
+    remaining.toList match {
+      case Nil => resolved
+      case one :: rest => {
+        one match {
+          case c: QueryCondition.Column[_] => {
+            val newCondition = c.bind(reservedKeys)
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newCondition.variables.map(_.name).toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(newCondition)
+            )
+          }
+
+          case QueryCondition.Static(expression) => {
+            resolveBoundConditions(
+              reservedKeys = reservedKeys,
+              remaining = rest,
+              resolved = resolved ++ Seq(BoundQueryCondition.Static(expression))
+            )
+          }
+
+          case c: QueryCondition.Subquery => {
+            val subquery = c.bind(reservedKeys)
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ subquery.query.allBindVariables.map(_.name).toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(subquery)
+            )
+          }
+
+          case c: QueryCondition.OrClause => {
+            val or = resolveBoundConditions(reservedKeys, c.conditions, Nil)
+            val newKeys = or.flatMap {
+              case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
+              case _: BoundQueryCondition.Static => Nil
+              case c: BoundQueryCondition.Column => c.variables.map(_.name)
+              case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name)
+            }
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newKeys.toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(
+                BoundQueryCondition.OrClause(or)
+              )
+            )
+          }
+        }
+      }
+    }
+  }
+
+  private lazy val allBindVariables: Seq[BindVariable[_]] = {
+    explicitBindVariables ++ boundConditions.flatMap {
+      case c: BoundQueryCondition.Column => c.variables
+      case BoundQueryCondition.Static(_) => Nil
+      case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+      case c: BoundQueryCondition.OrClause => c.conditions.flatMap {
+        case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
+        case _: BoundQueryCondition.Static => Nil
+        case c: BoundQueryCondition.Column => c.variables
+        case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+      }
+    }
+  }
 
   def equals[T](column: String, value: Option[T]): Query = optionalOperation(column, "=", value)
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
@@ -88,13 +170,27 @@ case class Query(
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
-    val bindVar = toBindVariable(uniqueBindName(column), value)
-    val exprColumn = withFunctions(column, columnFunctions, value)
-    val exprValue = withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, value)
-
+    val condition = value match {
+      case q: Query => {
+        QueryCondition.Subquery(
+          column = column,
+          operator = operator,
+          query = q,
+          columnFunctions = columnFunctions
+        )
+      }
+      case _ => {
+        QueryCondition.Column(
+          column = column,
+          operator = operator,
+          values = Seq(value),
+          columnFunctions = columnFunctions,
+          valueFunctions = valueFunctions
+        )
+      }
+    }
     this.copy(
-      conditions = conditions ++ Seq(s"$exprColumn $operator $exprValue"),
-      bind = bind ++ Seq(bindVar)
+      conditions = conditions ++ Seq(condition)
     )
   }
 
@@ -121,6 +217,26 @@ case class Query(
       case None => this
       case Some(v) => in(column, v, columnFunctions, valueFunctions)
     }
+  }
+
+  def in(column: String, query: Query): Query = {
+    addSubquery(column, query, "in")
+  }
+
+  def notIn(column: String, query: Query): Query = {
+    addSubquery(column, query, "not in")
+  }
+
+  private[this] def addSubquery(column: String, query: Query, operator: String): Query = {
+    this.copy(
+      conditions = conditions ++ Seq(
+        QueryCondition.Subquery(
+          column = column,
+          operator = operator,
+          query = query
+        )
+      )
+    )
   }
 
   def in[T](
@@ -154,42 +270,28 @@ case class Query(
   }
 
   private[this] def inClauseBuilder[T](
-    operation: String,
+    operator: String,
     column: String,
     values: Seq[T],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
   ): Query = {
     assert(
-      operation == "in" || operation == "not in",
-      s"Invalid operation[$operation] - must be 'in' or 'not in'"
+      operator == "in" || operator == "not in",
+      s"Invalid operation[$operator] - must be 'in' or 'not in'"
     )
 
-    values match {
-      case Nil => {
-        this.copy(
-          conditions = conditions ++ Seq("false")
+    this.copy(
+      conditions = conditions ++ Seq(
+        QueryCondition.Column(
+          column = column,
+          operator = operator,
+          values = values,
+          columnFunctions = columnFunctions,
+          valueFunctions = valueFunctions
         )
-      }
-      case multiple => {
-        val bindVariables = multiple.zipWithIndex.map { case (value, i) =>
-          val n = if (i == 0) { column } else { s"${column}${i+1}" }
-          toBindVariable(uniqueBindName(n), value)
-        }
-
-        val exprColumn = withFunctions(column, columnFunctions, multiple.head)
-
-        val cond = s"$exprColumn $operation (%s)".format(
-          bindVariables.map { bindVar =>
-            withFunctions(bindVar.sql, valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
-          }.mkString(", ")
-        )
-        this.copy(
-          conditions = conditions ++ Seq(cond),
-          bind = bind ++ bindVariables
-        )
-      }
-    }
+      )
+    )
   }
 
   def or(
@@ -217,10 +319,22 @@ case class Query(
     and(clause)
   }
 
+  def orClause(
+    clause: QueryCondition
+  ): Query = {
+    orClause(Seq(clause))
+  }
+
+  def orClause(
+    clauses: Seq[QueryCondition]
+  ): Query = {
+    this.copy(conditions = conditions ++ Seq(QueryCondition.OrClause(clauses)))
+  }
+
   def and(
     clauses: Seq[String]
   ): Query = {
-    this.copy(conditions = conditions ++ clauses)
+    this.copy(conditions = conditions ++ clauses.map(QueryCondition.Static))
   }
 
   def and(
@@ -246,14 +360,22 @@ case class Query(
     name: String,
     value: T
   ): Query = {
-    bind.find(_.name == name) match {
-      case None => {
-        this.copy(bind = bind ++ Seq(toBindVariable(name, value)))
-      }
-      case Some(_) => {
-        sys.error(s"Bind variable named '$name' already defined")
-      }
-    }
+    val safe = BindVariable.safeName(name)
+    assert(
+      !explicitBindVariables.exists { bv => BindVariable.safeName(bv.name) == safe },
+      s"Bind variable named '$name' already defined"
+    )
+    assert(
+      safe == name.toLowerCase.trim,
+      s"Invalid bind variable name[$name]" + (
+        if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
+      )
+    )
+    this.copy(
+      explicitBindVariables = explicitBindVariables ++ Seq(
+        BindVariable(name, value)
+      )
+    )
   }
 
   def bind[T](
@@ -296,8 +418,8 @@ case class Query(
     )
   }
 
-  def isTrue(column: String): Query = boolean(column, true)
-  def isFalse(column: String): Query = boolean(column, false)
+  def isTrue(column: String): Query = boolean(column, value = true)
+  def isFalse(column: String): Query = boolean(column, value = false)
 
   def boolean(column: String, value: Option[Boolean]): Query = {
     value match {
@@ -391,10 +513,10 @@ case class Query(
     * Creates the full text of the sql query
     */
   def sql(): String = {
-    val query = conditions match {
+    val query = boundConditions match {
       case Nil => base
       case conds => {
-        base + " where " + conds.mkString(" and ")
+        base + " where " + conds.map(toSql).mkString(" and ")
       }
     }
 
@@ -428,37 +550,77 @@ case class Query(
    * variables interpolated for easy inspection.
    */
   def interpolate(): String = {
-    bind.foldLeft(sql()) { case (query, bindVar) =>
+    allBindVariables.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.BigInt(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.Num(name, value) => {
           query.
-            replace(bindVar.sql, value.toString).
+            replace(bindVar.sqlPlaceholder, value.toString).
             replace(s"{$name}", value.toString)
         }
         case BindVariable.Uuid(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::uuid")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::uuid")
         }
         case BindVariable.DateVar(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::date")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::date")
         }
         case BindVariable.DateTimeVar(_, value) => {
-          query.replace(bindVar.sql, s"'$value'::timestamptz")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'::timestamptz")
         }
         case BindVariable.Str(_, value) => {
-          query.replace(bindVar.sql, s"'$value'")
+          query.replace(bindVar.sqlPlaceholder, s"'$value'")
         }
         case BindVariable.Unit(_) => {
-          query.replace(bindVar.sql, "null")
+          query.replace(bindVar.sqlPlaceholder, "null")
+        }
+      }
+    }
+  }
+
+  private[this] def toSql(condition: BoundQueryCondition): String = {
+    condition match {
+      case c: BoundQueryCondition.Column => {
+        c.variables.toList match {
+          case Nil => "false" // Intentionally match no rows on empty list
+
+          case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
+            val exprColumn = withFunctions(c.column, c.columnFunctions, bindVar.value)
+            val exprValue = withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
+            s"$exprColumn ${c.operator} $exprValue"
+          }
+
+          case multiple => {
+            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.head.value)
+
+            s"$exprColumn ${c.operator} (%s)".format(
+              multiple.map { bindVar =>
+                withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
+              }.mkString(", ")
+            )
+          }
+        }
+      }
+
+      case BoundQueryCondition.Static(expression) => expression
+
+      case c: BoundQueryCondition.Subquery => {
+        val exprColumn = withFunctions(c.column, c.columnFunctions, "TODO")
+        s"$exprColumn ${c.operator} (${c.query.sql()})"
+      }
+
+      case c: BoundQueryCondition.OrClause => {
+        c.conditions.map(toSql).toList match {
+          case one :: Nil => one
+          case other => "(" + other.mkString(" or ") + ")"
         }
       }
     }
@@ -476,12 +638,12 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
-    if (bind.isEmpty) {
+    if (allBindVariables.isEmpty) {
       interpolate()
     } else {
       Seq(
         sql(),
-        bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        allBindVariables.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")
@@ -495,40 +657,7 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(bind.map(_.toNamedParameter): _*)
-  }
-
-
-  /**
-    * Generates a unique, as friendly as possible, bind variable name
-    */
-  private[this] def toBindVariable(name: String, value: Any): BindVariable = {
-    value match {
-      case v: UUID => BindVariable.Uuid(name, v)
-      case v: LocalDate => BindVariable.DateVar(name, v)
-      case v: DateTime => BindVariable.DateTimeVar(name, v)
-      case v: Int => BindVariable.Int(name, v)
-      case v: Long => BindVariable.BigInt(name, v)
-      case v: Number => BindVariable.Num(name, v)
-      case v: String => BindVariable.Str(name, v)
-      case _: Unit => BindVariable.Unit(name)
-      case _ => BindVariable.Str(name, value.toString)
-    }
-  }
-
-  /**
-    * Generates a unique bind variable name from the specified input
-    *
-    * @param name Preferred name of bind variable - will be used if unique,
-    *             otherwise we generate a unique version.
-    */
-  def uniqueBindName(name: String): String = {
-    val safeName = BindVariable.safeName(name)
-
-    bind.find(_.name == safeName) match {
-      case Some(_) => uniqueBindName(s"${safeName}${bind.size + 1}")
-      case None => safeName
-    }
+    SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](
