@@ -85,7 +85,7 @@ case class Query(
           case c: QueryCondition.Subquery => {
             val subquery = c.bind(reservedKeys)
             resolveBoundConditions(
-              reservedKeys = reservedKeys ++ subquery.query.explicitBindVariables.map(_.name).toSet,
+              reservedKeys = reservedKeys ++ subquery.query.allBindVariables.map(_.name).toSet,
               remaining = rest,
               resolved = resolved ++ Seq(subquery)
             )
