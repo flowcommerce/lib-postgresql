@@ -747,20 +747,35 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
-  it("or with subqueries") {
+  it("or with single subquery") {
+    val experience = Query("select * from experiences")
+    val filter1 = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.orClause(
+        Seq(
+          QueryCondition.Subquery("id", filter1)
+        )
+      ),
+      "select * from experiences where id in (select id from experiences where status = trim({status}))",
+      "select * from experiences where id in (select id from experiences where status = trim('draft'))"
+    )
+  }
+
+  it("or with multiple subqueries") {
     val experience = Query("select * from experiences")
     val filter1 = Query("select id from experiences").equals("status", "draft")
     val filter2 = Query("select id from experiences").equals("status", "live")
 
     validate(
-      experience.or(
+      experience.orClause(
         Seq(
-          s"experience.id in (${filter1.sql()})",
-          s"experience.id in (${filter2.sql()})"
+          QueryCondition.Subquery("id", filter1),
+          QueryCondition.Subquery("id", filter2)
         )
       ),
-      "select * from users where status = trim({status}) and id in (select id from users where status = trim({status2}))",
-      "select * from users where status = trim('live') and id in (select id from users where status = trim('draft'))"
+      "select * from experiences where (id in (select id from experiences where status = trim({status})) or id in (select id from experiences where status = trim({status2})))",
+      "select * from experiences where (id in (select id from experiences where status = trim('draft')) or id in (select id from experiences where status = trim('live')))"
     )
   }
 

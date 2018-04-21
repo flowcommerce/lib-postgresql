@@ -55,7 +55,6 @@ case class Query(
     * Recursively bind all the variables. Primary use case is to
     * make sure all subquery bind variables are namespaces properly
     */
-  @tailrec
   private[this] def resolveBoundConditions(
     reservedKeys: Set[String],
     remaining: Seq[QueryCondition],
@@ -90,6 +89,23 @@ case class Query(
               resolved = resolved ++ Seq(subquery)
             )
           }
+
+          case c: QueryCondition.OrClause => {
+            val or = resolveBoundConditions(reservedKeys, c.conditions, Nil)
+            val newKeys = or.flatMap {
+              case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
+              case _: BoundQueryCondition.Static => Nil
+              case c: BoundQueryCondition.Column => c.variables.map(_.name)
+              case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name)
+            }
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newKeys.toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(
+                BoundQueryCondition.OrClause(or)
+              )
+            )
+          }
         }
       }
     }
@@ -100,6 +116,12 @@ case class Query(
       case c: BoundQueryCondition.Column => c.variables
       case BoundQueryCondition.Static(_) => Nil
       case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+      case c: BoundQueryCondition.OrClause => c.conditions.flatMap {
+        case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
+        case _: BoundQueryCondition.Static => Nil
+        case c: BoundQueryCondition.Column => c.variables
+        case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+      }
     }
   }
 
@@ -297,6 +319,18 @@ case class Query(
     clause: String
   ): Query = {
     and(clause)
+  }
+
+  def orClause(
+    clause: QueryCondition
+  ): Query = {
+    orClause(Seq(clause))
+  }
+
+  def orClause(
+    clauses: Seq[QueryCondition]
+  ): Query = {
+    this.copy(conditions = conditions ++ Seq(QueryCondition.OrClause(clauses)))
   }
 
   def and(
@@ -583,6 +617,13 @@ case class Query(
       case c: BoundQueryCondition.Subquery => {
         val exprColumn = withFunctions(c.column, c.columnFunctions, "TODO")
         s"$exprColumn ${c.operator} (${c.query.sql()})"
+      }
+
+      case c: BoundQueryCondition.OrClause => {
+        c.conditions.map(toSql).toList match {
+          case one :: Nil => one
+          case other => "(" + other.mkString(" or ") + ")"
+        }
       }
     }
   }

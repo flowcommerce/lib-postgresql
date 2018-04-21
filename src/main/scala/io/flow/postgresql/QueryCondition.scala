@@ -35,8 +35,8 @@ object QueryCondition {
 
   case class Subquery(
     column: String,
-    operator: String,
     query: Query,
+    operator: String = "in",
     columnFunctions: Seq[Query.Function] = Nil
   ) extends QueryCondition {
     def bind(reservedKeys: Set[String]): BoundQueryCondition.Subquery = {
@@ -52,6 +52,8 @@ object QueryCondition {
       )
     }
   }
+
+  case class OrClause(conditions: Seq[QueryCondition]) extends QueryCondition
 
   /**
     * Generates a unique bind variable name from the specified input
@@ -94,5 +96,7 @@ object BoundQueryCondition {
     query: Query,
     columnFunctions: Seq[Query.Function] = Nil
   ) extends BoundQueryCondition
+
+  case class OrClause(conditions: Seq[BoundQueryCondition]) extends BoundQueryCondition
 
 }
