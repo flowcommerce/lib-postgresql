@@ -586,13 +586,12 @@ case class Query(
     * Returns debugging information about this query
     */
   def debuggingInfo(): String = {
-    val bind = allBindVariables
-    if (bind.isEmpty) {
+    if (allBindVariables.isEmpty) {
       interpolate()
     } else {
       Seq(
         sql(),
-        bind.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        allBindVariables.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")
