@@ -88,7 +88,6 @@ object BindVariable {
   case class Str(override val name: String, override val value: String) extends BindVariable[String] {
     override val defaultValueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
     override def toNamedParameter: NamedParameter = NamedParameter(name, value)
-    println(s"STRING: $name value:$value")
   }
 
   case class Uuid(override val name: String, override val value: UUID) extends BindVariable[UUID] {

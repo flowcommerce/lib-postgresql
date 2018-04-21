@@ -293,13 +293,13 @@ case class Query(
     name: String,
     value: T
   ): Query = {
-    assert(
-      !explicitBindVariables.exists(_.name == name),
-      s"Bind variable named '$name' already defined"
-    )
     val safe = BindVariable.safeName(name)
     assert(
-      safe == name,
+      !explicitBindVariables.exists { bv => BindVariable.safeName(bv.name) == safe },
+      s"Bind variable named '$name' already defined"
+    )
+    assert(
+      safe == name.toLowerCase.trim,
       s"Invalid bind variable name[$name]" + (
         if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
       )

@@ -507,11 +507,11 @@ class QuerySpec extends FunSpec with Matchers {
     Try {
       Query("select * from users").
         bind("email", "mike@flow.io").
-        bind("email", Some("paolo@flow.io"))
+        bind("EMAIL", Some("paolo@flow.io"))
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
-        ex.getMessage should be("assertion failed: Bind variable named 'email' already defined")
+        ex.getMessage should be("assertion failed: Bind variable named 'EMAIL' already defined")
       }
     }
   }
