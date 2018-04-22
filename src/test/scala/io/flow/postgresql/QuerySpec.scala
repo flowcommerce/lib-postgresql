@@ -753,9 +753,7 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       experience.orClause(
-        Seq(
-          QueryCondition.Subquery("id", filter1)
-        )
+        QueryCondition.Subquery("id", filter1)
       ),
       "select * from experiences where id in (select id from experiences where status = trim({status}))",
       "select * from experiences where id in (select id from experiences where status = trim('draft'))"
@@ -769,13 +767,24 @@ class QuerySpec extends FunSpec with Matchers {
 
     validate(
       experience.orClause(
-        Seq(
-          QueryCondition.Subquery("id", filter1),
-          QueryCondition.Subquery("id", filter2)
-        )
+        QueryCondition.Subquery("id", filter1),
+        QueryCondition.Subquery("id", filter2)
       ),
       "select * from experiences where (id in (select id from experiences where status = trim({status})) or id in (select id from experiences where status = trim({status2})))",
       "select * from experiences where (id in (select id from experiences where status = trim('draft')) or id in (select id from experiences where status = trim('live')))"
+    )
+  }
+
+  it("not") {
+    val experience = Query("select * from experiences")
+    val filter = Query("select id from experiences").equals("status", "draft")
+
+    validate(
+      experience.not(
+        QueryCondition.Subquery("id", filter)
+      ),
+      "select * from experiences where not (id in (select id from experiences where status = trim({status})))",
+      "select * from experiences where not (id in (select id from experiences where status = trim('draft')))"
     )
   }
 
