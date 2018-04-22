@@ -55,6 +55,8 @@ object QueryCondition {
 
   case class OrClause(conditions: Seq[QueryCondition]) extends QueryCondition
 
+  case class Not(condition: QueryCondition) extends QueryCondition
+
   /**
     * Generates a unique bind variable name from the specified input
     *
@@ -98,5 +100,7 @@ object BoundQueryCondition {
   ) extends BoundQueryCondition
 
   case class OrClause(conditions: Seq[BoundQueryCondition]) extends BoundQueryCondition
+
+  case class Not(condition: BoundQueryCondition) extends BoundQueryCondition
 
 }

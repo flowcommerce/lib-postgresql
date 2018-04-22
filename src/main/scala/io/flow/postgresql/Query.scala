@@ -1,8 +1,7 @@
 package io.flow.postgresql
 
-import java.util.UUID
-
 import anorm._
+import java.util.UUID
 import org.joda.time.{DateTime, LocalDate}
 
 object Query {
@@ -71,6 +70,21 @@ case class Query(
             )
           }
 
+          case QueryCondition.Not(cond) => {
+            val not = resolveBoundConditions(reservedKeys, Seq(cond), Nil).toList match {
+              case c :: Nil => c
+              case other => sys.error(s"Expected 1 bound condition but found[${other.size}]: $cond")
+            }
+
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ findKeys(Seq(not)),
+              remaining = rest,
+              resolved = resolved ++ Seq(
+                BoundQueryCondition.Not(not)
+              )
+            )
+          }
+
           case QueryCondition.Static(expression) => {
             resolveBoundConditions(
               reservedKeys = reservedKeys,
@@ -90,14 +104,8 @@ case class Query(
 
           case c: QueryCondition.OrClause => {
             val or = resolveBoundConditions(reservedKeys, c.conditions, Nil)
-            val newKeys = or.flatMap {
-              case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
-              case _: BoundQueryCondition.Static => Nil
-              case c: BoundQueryCondition.Column => c.variables.map(_.name)
-              case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name)
-            }
             resolveBoundConditions(
-              reservedKeys = reservedKeys ++ newKeys.toSet,
+              reservedKeys = reservedKeys ++ findKeys(or),
               remaining = rest,
               resolved = resolved ++ Seq(
                 BoundQueryCondition.OrClause(or)
@@ -109,13 +117,42 @@ case class Query(
     }
   }
 
+  private[this] def findKeys(
+    conditions: Seq[BoundQueryCondition],
+    found: Set[String] = Set.empty
+  ): Set[String] = {
+    conditions.toList match {
+      case Nil => found
+      case first :: rest => {
+        val newKeys = first match {
+          case c: BoundQueryCondition.OrClause => findKeys(c.conditions)
+          case c: BoundQueryCondition.Not => findKeys(Seq(c.condition))
+          case _: BoundQueryCondition.Static => Nil
+          case c: BoundQueryCondition.Column => c.variables.map(_.name).toSet
+          case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name).toSet
+        }
+        findKeys(rest, found ++ newKeys)
+      }
+    }
+  }
+
   private lazy val allBindVariables: Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
       case c: BoundQueryCondition.Column => c.variables
       case BoundQueryCondition.Static(_) => Nil
       case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+      case c: BoundQueryCondition.Not => {
+        c.condition match {
+          case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution not supported")
+          case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
+          case _: BoundQueryCondition.Static => Nil
+          case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+        }
+      }
       case c: BoundQueryCondition.OrClause => c.conditions.flatMap {
-        case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution")
+        case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution not supported")
+        case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
         case _: BoundQueryCondition.Static => Nil
         case c: BoundQueryCondition.Column => c.variables
         case c: BoundQueryCondition.Subquery => c.query.allBindVariables
@@ -320,15 +357,15 @@ case class Query(
   }
 
   def orClause(
-    clause: QueryCondition
+    clause: QueryCondition*
   ): Query = {
-    orClause(Seq(clause))
+    this.copy(conditions = conditions ++ Seq(QueryCondition.OrClause(clause)))
   }
 
-  def orClause(
-    clauses: Seq[QueryCondition]
+  def not(
+    clause: QueryCondition
   ): Query = {
-    this.copy(conditions = conditions ++ Seq(QueryCondition.OrClause(clauses)))
+    this.copy(conditions = conditions ++ Seq(QueryCondition.Not(clause)))
   }
 
   def and(
@@ -622,6 +659,10 @@ case class Query(
           case one :: Nil => one
           case other => "(" + other.mkString(" or ") + ")"
         }
+      }
+
+      case c: BoundQueryCondition.Not => {
+        "not (" + toSql(c.condition) + ")"
       }
     }
   }
