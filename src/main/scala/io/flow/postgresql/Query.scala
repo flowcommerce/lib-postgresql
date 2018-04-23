@@ -414,7 +414,7 @@ case class Query(
       s"Bind variable named '$name' has been reserved and cannot be used again in this query"
     )
     this.copy(
-      explicitBindVariables = explicitBindVariables ++ BindVariable.fromValue(name, value).toSeq
+      explicitBindVariables = explicitBindVariables ++ Seq(BindVariable(name, value))
     )
   }
 
@@ -619,6 +619,9 @@ case class Query(
         case BindVariable.Str(_, value) => {
           query.replace(bindVar.sqlPlaceholder, s"'$value'")
         }
+        case BindVariable.Unit(_) => {
+          query.replace(bindVar.sqlPlaceholder, "null")
+        }
       }
     }
   }
@@ -685,7 +688,7 @@ case class Query(
       Seq(
         sql(),
         allBindVariables.map { bv =>
-          s" - ${bv.name}: ${bv.value}"
+          s" - ${bv.name}: ${bv.value.getOrElse("null")}"
         }.mkString("\n"),
         "Interpolated:",
         interpolate()
