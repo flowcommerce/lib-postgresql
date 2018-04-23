@@ -37,12 +37,13 @@ case class Query(
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
   locking: Option[String] = None,
-  explicitBindVariables: Seq[BindVariable[_]] = Nil
+  explicitBindVariables: Seq[BindVariable[_]] = Nil,
+  reservedBindVariableNames: Set[String] = Set.empty
 ) {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
     resolveBoundConditions(
-      reservedKeys = explicitBindVariables.map(_.name).toSet,
+      reservedKeys = explicitBindVariables.map(_.name).toSet ++ reservedBindVariableNames,
       remaining = conditions,
       resolved = Nil
     )
@@ -399,19 +400,21 @@ case class Query(
   ): Query = {
     val safe = BindVariable.safeName(name)
     assert(
+      safe == name.toLowerCase.trim,
+      s"Invalid bind variable name[$name]" + (
+        if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
+        )
+    )
+    assert(
       !explicitBindVariables.exists { bv => BindVariable.safeName(bv.name) == safe },
       s"Bind variable named '$name' already defined"
     )
     assert(
-      safe == name.toLowerCase.trim,
-      s"Invalid bind variable name[$name]" + (
-        if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
-      )
+      !reservedBindVariableNames.contains(safe),
+      s"Bind variable named '$name' has been reserved and cannot be used again in this query"
     )
     this.copy(
-      explicitBindVariables = explicitBindVariables ++ Seq(
-        BindVariable(name, value)
-      )
+      explicitBindVariables = explicitBindVariables ++ Seq(BindVariable(name, value))
     )
   }
 
@@ -636,7 +639,7 @@ case class Query(
           }
 
           case multiple => {
-            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.headOption.flatMap(_.value))
+            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.headOption.map(_.value))
 
             s"$exprColumn ${c.operator} (%s)".format(
               multiple.map { bindVar =>
