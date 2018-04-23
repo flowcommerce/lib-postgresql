@@ -344,7 +344,7 @@ class QuerySpec extends FunSpec with Matchers {
     validate(
       Query("insert into users (first) values ({first})").bind("first", None),
       "insert into users (first) values ({first})",
-      "insert into users (first) values (null)"
+      "insert into users (first) values ({first})"
     )
   }
 

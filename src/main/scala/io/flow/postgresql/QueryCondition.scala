@@ -21,10 +21,11 @@ object QueryCondition {
         operator = operator,
         columnFunctions = columnFunctions,
         valueFunctions = valueFunctions,
-        variables = values.map { value =>
+        variables = values.flatMap { value =>
           val name = uniqueName(reservedKeys ++ allocated, column)
-          allocated.add(name)
-          BindVariable(name, value)
+          val bv = BindVariable.fromValue(name, value)
+          bv.foreach { _ => allocated.add(name) }
+          bv
         }
       )
     }
@@ -44,9 +45,7 @@ object QueryCondition {
         column = column,
         operator = operator,
         query = query.copy(
-          explicitBindVariables = query.explicitBindVariables ++ reservedKeys.map { key =>
-            BindVariable(key, ()) // Reserve the keys previously allocated
-          }
+          reservedBindVariableNames = query.reservedBindVariableNames ++ reservedKeys
         ),
         columnFunctions = columnFunctions
       )
