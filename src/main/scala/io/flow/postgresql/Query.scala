@@ -636,7 +636,7 @@ case class Query(
           }
 
           case multiple => {
-            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.head.value)
+            val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.headOption.flatMap(_.value))
 
             s"$exprColumn ${c.operator} (%s)".format(
               multiple.map { bindVar =>
@@ -684,7 +684,9 @@ case class Query(
     } else {
       Seq(
         sql(),
-        allBindVariables.map { bv => s" - ${bv.name}: ${bv.value}" }.mkString("\n"),
+        allBindVariables.map { bv =>
+          s" - ${bv.name}: ${bv.value.getOrElse("null")}"
+        }.mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")

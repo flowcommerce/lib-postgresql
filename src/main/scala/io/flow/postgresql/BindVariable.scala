@@ -8,7 +8,7 @@ import org.joda.time.{DateTime, LocalDate}
 sealed trait BindVariable[T] extends Product with Serializable {
 
   def name: String
-  def value: T
+  def value: Option[T]
   def toNamedParameter: NamedParameter
   def defaultValueFunctions: Seq[Query.Function] = Nil
   def psqlType: Option[String] = None
@@ -17,6 +17,11 @@ sealed trait BindVariable[T] extends Product with Serializable {
     case None => s"{$name}"
     case Some(t) => s"{$name}::$t"
   }
+}
+
+sealed trait DefinedBindVariable[T] extends BindVariable[T] {
+  val v: T
+  override val value = Some(v)
 }
 
 object BindVariable {
@@ -70,43 +75,43 @@ object BindVariable {
     }
   }
 
-  case class Int(override val name: String, override val value: scala.Int) extends BindVariable[scala.Int] {
+  case class Int(override val name: String, override val v: scala.Int) extends DefinedBindVariable[scala.Int] {
     override val psqlType: Option[String] = Some("int")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class BigInt(override val name: String, override val value: Long) extends BindVariable[Long] {
+  case class BigInt(override val name: String, override val v: Long) extends DefinedBindVariable[Long] {
     override val psqlType: Option[String] = Some("bigint")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class Num(override val name: String, override val value: Number) extends BindVariable[Number] {
+  case class Num(override val name: String, override val v: Number) extends DefinedBindVariable[Number] {
     override val psqlType: Option[String] = Some("numeric")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class Str(override val name: String, override val value: String) extends BindVariable[String] {
+  case class Str(override val name: String, override val v: String) extends DefinedBindVariable[String] {
     override val defaultValueFunctions: Seq[Query.Function] = Seq(Query.Function.Trim)
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v)
   }
 
-  case class Uuid(override val name: String, override val value: UUID) extends BindVariable[UUID] {
+  case class Uuid(override val name: String, override val v: UUID) extends DefinedBindVariable[UUID] {
     override val psqlType: Option[String] = Some("uuid")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class DateVar(override val name: String, override val value: LocalDate) extends BindVariable[LocalDate] {
+  case class DateVar(override val name: String, override val v: LocalDate) extends DefinedBindVariable[LocalDate] {
     override val psqlType: Option[String] = Some("date")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class DateTimeVar(override val name: String, override val value: DateTime) extends BindVariable[DateTime] {
+  case class DateTimeVar(override val name: String, override val v: DateTime) extends DefinedBindVariable[DateTime] {
     override val psqlType: Option[String] = Some("timestamptz")
-    override def toNamedParameter: NamedParameter = NamedParameter(name, value.toString)
+    override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
   case class Unit(override val name: String) extends BindVariable[scala.Unit] {
-    override def value: scala.Unit = sys.error(s"Value not supported for unit type")
+    override def value: Option[scala.Unit] = None
     override def toNamedParameter: NamedParameter = NamedParameter(name, Option.empty[String])
   }
 
