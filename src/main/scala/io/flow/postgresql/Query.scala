@@ -227,9 +227,14 @@ case class Query(
         )
       }
     }
-    this.copy(
-      conditions = conditions ++ Seq(condition)
-    )
+    if (this.conditions.contains(condition)) {
+      // exact condition has already been added - no reason to readd
+      this
+    } else {
+      this.copy(
+        conditions = conditions ++ Seq(condition)
+      )
+    }
   }
 
   def optionalOperation[T](
@@ -335,7 +340,7 @@ case class Query(
   def or(
     clauses: Seq[String]
   ): Query = {
-    clauses match {
+    clauses.distinct match {
       case Nil => this
       case one :: Nil => and(one)
       case multiple => and("(" + multiple.mkString(" or ") + ")")
@@ -372,7 +377,7 @@ case class Query(
   def and(
     clauses: Seq[String]
   ): Query = {
-    this.copy(conditions = conditions ++ clauses.map(QueryCondition.Static))
+    this.copy(conditions = conditions ++ clauses.distinct.map(QueryCondition.Static))
   }
 
   def and(
