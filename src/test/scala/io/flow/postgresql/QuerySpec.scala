@@ -402,6 +402,13 @@ class QuerySpec extends FunSpec with Matchers {
       "select * from users where email is not null and name is not null",
       "select * from users where email is not null and name is not null"
     )
+
+    // remove duplicates
+    validate(
+      Query("select * from users").and(Seq("id=1", "id=1")),
+      "select * from users where id=1",
+      "select * from users where id=1"
+    )
   }
 
   it("or") {
@@ -803,6 +810,52 @@ class QuerySpec extends FunSpec with Matchers {
       query.equals("status", "live"),
       "select * from users where status = trim({status})",
       "select * from users where status = trim('live')"
+    )
+  }
+
+  it("duplicate and queries are removed") {
+    val query = Query("select * from users")
+
+    validate(
+      query.equals("id", 1).equals("id", 1),
+      "select * from users where id = {id}::int",
+      "select * from users where id = 1"
+    )
+    validate(
+      query.equals("id", 1).equals("id", 2),
+      "select * from users where id = {id}::int and id = {id2}::int",
+      "select * from users where id = 1 and id = 2"
+    )
+
+    validate(
+      query.equals("id", "foo").equals("id", "foo"),
+      "select * from users where id = trim({id})",
+      "select * from users where id = trim('foo')"
+    )
+    validate(
+      query.equals("id", "foo").equals("id", "bar"),
+      "select * from users where id = trim({id}) and id = trim({id2})",
+      "select * from users where id = trim('foo') and id = trim('bar')"
+    )
+  }
+
+  it("duplicate or queries are removed") {
+    val query = Query("select * from users")
+
+    validate(
+      query.or(
+        Seq("id = 1", "id = 1")
+      ),
+      "select * from users where id = 1",
+      "select * from users where id = 1"
+    )
+
+    validate(
+      query.or(
+        Seq("id = 1", "id = 2")
+      ),
+      "select * from users where (id = 1 or id = 2)",
+      "select * from users where (id = 1 or id = 2)"
     )
   }
 
