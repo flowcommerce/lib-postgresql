@@ -664,6 +664,20 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("having") {
+    validate(
+      Query("select * from users").groupBy(None).having(None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").groupBy(Some("users.id")).having("count(users.id) > 0"),
+      "select * from users group by users.id having count(users.id) > 0",
+      "select * from users group by users.id having count(users.id) > 0"
+    )
+  }
+
   it("orderBy") {
     validate(
       Query("select * from users").

@@ -36,6 +36,7 @@ case class Query(
   offset: Option[Long] = None,
   debug: Boolean = false,
   groupBy: Seq[String] = Nil,
+  having: Option[String] = None,
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil,
   reservedBindVariableNames: Set[String] = Set.empty
@@ -519,6 +520,14 @@ case class Query(
     this.copy(groupBy = groupBy ++ Seq(value))
   }
 
+  def having(value: Option[String]): Query ={
+    this.copy(having = value)
+  }
+
+  def having(value: String): Query = {
+    having(Some(value))
+  }
+
   def orderBy(value: Option[String]): Query = {
     value match {
       case None => this
@@ -571,6 +580,7 @@ case class Query(
         case Nil => None
         case clauses => Some("group by " + clauses.mkString(", "))
       },
+      having.map(h => s"having $h"),
       orderBy match {
         case Nil => None
         case clauses => Some("order by " + clauses.mkString(", "))
