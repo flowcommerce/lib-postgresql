@@ -4,9 +4,9 @@ name := "lib-postgresql-play26"
 
 organization := "io.flow"
 
-scalaVersion in ThisBuild := "2.12.7"
+scalaVersion in ThisBuild := "2.12.8"
 
-crossScalaVersions := Seq("2.12.7", "2.11.12")
+crossScalaVersions := Seq("2.12.8", "2.11.12")
 
 version := "0.0.90"
 
