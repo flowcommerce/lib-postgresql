@@ -873,4 +873,9 @@ class QuerySpec extends FunSpec with Matchers {
     )
   }
 
+  it("allows '{}' - empty json object") {
+    val q = "select * from users where data::text = '{}'"
+    validate(Query(q), q, q)
+  }
+
 }
