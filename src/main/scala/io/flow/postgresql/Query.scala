@@ -317,8 +317,8 @@ case class Query(
     operator: String,
     column: String,
     values: Seq[T],
-    columnFunctions: Seq[Query.Function] = Nil,
-    valueFunctions: Seq[Query.Function] = Nil
+    columnFunctions: Seq[Query.Function],
+    valueFunctions: Seq[Query.Function],
   ): Query = {
     assert(
       operator == "in" || operator == "not in",

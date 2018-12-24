@@ -5,7 +5,7 @@ import org.scalatest.{FunSpec, Matchers}
 class PagerSpec extends FunSpec with Matchers {
 
   it("empty list") {
-    val pager = Pager.create { offset => Nil }
+    val pager = Pager.create { _ => Nil }
     pager.hasNext should be(false)
 
     intercept[NoSuchElementException] {
