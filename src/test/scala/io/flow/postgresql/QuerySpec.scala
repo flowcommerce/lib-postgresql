@@ -4,22 +4,13 @@ import scala.util.{Failure, Success, Try}
 import java.util.UUID
 
 import org.joda.time.{DateTime, LocalDate}
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.{Assertion, FunSpec, Matchers}
 
 class QuerySpec extends FunSpec with Matchers {
 
-  def validate(query: Query, sql: String, interpolate: String) {
-    if (query.sql != sql) {
-      println("expected: " + sql)
-      println("  actual: " + query.sql)
-      query.sql should be(sql)
-    }
-
-    if (query.interpolate != interpolate) {
-      println("expected: " + interpolate)
-      println("  actual: " + query.interpolate)
-      query.interpolate should be(interpolate)
-    }
+  def validate(query: Query, sql: String, interpolate: String): Assertion = {
+    query.sql should be(sql)
+    query.interpolate should be(interpolate)
   }
 
   it("base") {

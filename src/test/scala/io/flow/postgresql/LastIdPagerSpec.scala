@@ -5,7 +5,7 @@ import org.scalatest.{FunSpec, Matchers}
 class LastIdPagerSpec extends FunSpec with Matchers {
 
   it("empty list") {
-    val pager = Pager.byLastId[Long, Long](lastId => Nil, identity)
+    val pager = Pager.byLastId[Long, Long](_ => Nil, identity)
     pager.hasNext should be(false)
 
     intercept[NoSuchElementException] {
@@ -14,7 +14,7 @@ class LastIdPagerSpec extends FunSpec with Matchers {
   }
 
   it("single page list") {
-    val pager = Pager.byLastId[String, Long](
+    val pager = Pager.byLastId[String, Int](
       {
         case None => Seq("*", "**")
         case Some(2L) => Nil
@@ -31,7 +31,7 @@ class LastIdPagerSpec extends FunSpec with Matchers {
   }
 
   it("multiple pages") {
-    val pager = Pager.byLastId[String, Long](
+    val pager = Pager.byLastId[String, Int](
       {
         case None => Seq("*", "**")
         case Some(2L) => Seq("****")

@@ -5,11 +5,11 @@ import org.scalatest.{FunSpec, Matchers}
 class BulkDeleteSpec extends FunSpec with Matchers {
 
   it("empty list") {
-    val emptyList = Seq()
+    val emptyList: List[String] = Nil
 
     BulkDelete.byPage {
       emptyList
-    } { e =>
+    } { _ =>
       sys.error("Should not have iterator")
     }
   }
@@ -17,7 +17,7 @@ class BulkDeleteSpec extends FunSpec with Matchers {
   it("list with single element") {
     val original = Seq("x")
     var items = original
-    var found = scala.collection.mutable.ListBuffer[String]()
+    val found = scala.collection.mutable.ListBuffer[String]()
 
     BulkDelete.byPage {
       items
@@ -31,7 +31,7 @@ class BulkDeleteSpec extends FunSpec with Matchers {
   it("list with multiple elements") {
     val original = Seq(1, 2, 3)
     var items = original
-    var found = scala.collection.mutable.ListBuffer[Int]()
+    val found = scala.collection.mutable.ListBuffer[Int]()
 
     BulkDelete.byPage {
       items

@@ -22,7 +22,7 @@ object BulkDelete {
     f: => Iterable[T]
   ) (
     deleteFunction: T => Unit
-  ) {
+  ): Unit = {
     val results = f
 
     results.foreach { r =>

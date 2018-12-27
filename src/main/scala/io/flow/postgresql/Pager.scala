@@ -100,7 +100,7 @@ trait GenericPager[T, Context] extends Iterator[T] {
 
   /**
     * Produces the next element of this iterator.
-    * @return the next element of this iterator, if `hasNext` is `true`, throws a [[NoSuchElementException]] otherwise.
+    * @return the next element of this iterator, if `hasNext` is `true`, throws a [[scala.NoSuchElementException]] otherwise.
     */
   def next: T = {
     if (hasNext) nextAndReload()
