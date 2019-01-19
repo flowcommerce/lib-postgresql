@@ -15,7 +15,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% "lib-test-utils" % "0.0.29" % Test
+      "io.flow" %% "lib-test-utils" % "0.0.30" % Test
     ),
     resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
