@@ -3,8 +3,9 @@ package io.flow.postgresql
 import scala.util.{Failure, Success, Try}
 import java.util.UUID
 
-import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.{Assertion, FunSpec, Matchers}
+import java.time.{ Instant, LocalDate }
+import java.time.temporal.ChronoUnit
 
 class QuerySpec extends FunSpec with Matchers {
 
@@ -154,7 +155,7 @@ class QuerySpec extends FunSpec with Matchers {
   }
 
   it("lessThan w/ date time") {
-    val ts = DateTime.now
+    val ts = Instant.now
     validate(
       Query("select * from users").lessThan("created_at", Some(ts)),
       "select * from users where created_at < {created_at}::timestamptz",
@@ -163,7 +164,7 @@ class QuerySpec extends FunSpec with Matchers {
   }
 
   it("lessThanOrEquals w/ date time") {
-    val ts = DateTime.now
+    val ts = Instant.now
     validate(
       Query("select * from users").lessThanOrEquals("created_at", Some(ts)),
       "select * from users where created_at <= {created_at}::timestamptz",
@@ -172,7 +173,7 @@ class QuerySpec extends FunSpec with Matchers {
   }
 
   it("greaterThan w/ date time") {
-    val ts = DateTime.now
+    val ts = Instant.now
     validate(
       Query("select * from users").greaterThan("created_at", Some(ts)),
       "select * from users where created_at > {created_at}::timestamptz",
@@ -181,7 +182,7 @@ class QuerySpec extends FunSpec with Matchers {
   }
 
   it("greaterThanOrEquals w/ date time") {
-    val ts = DateTime.now
+    val ts = Instant.now
     validate(
       Query("select * from users").greaterThanOrEquals("created_at", Some(ts)),
       "select * from users where created_at >= {created_at}::timestamptz",
@@ -254,8 +255,8 @@ class QuerySpec extends FunSpec with Matchers {
   }
 
   it("in with datetime") {
-    val ts = DateTime.now
-    val values = Seq(ts, ts.plusHours(1))
+    val ts = Instant.now
+    val values = Seq(ts, ts.plus(1.toLong, ChronoUnit.HOURS))
     validate(
       Query("select * from users").in("created_at", values),
       "select * from users where created_at in ({created_at}::timestamptz, {created_at2}::timestamptz)",
@@ -317,7 +318,7 @@ class QuerySpec extends FunSpec with Matchers {
   
 
   it("datetime") {
-    val ts = DateTime.now
+    val ts = Instant.now
     validate(
       Query("select * from users").equals("users.created_at", None),
       "select * from users",

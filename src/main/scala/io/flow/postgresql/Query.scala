@@ -2,7 +2,7 @@ package io.flow.postgresql
 
 import anorm._
 import java.util.UUID
-import org.joda.time.{DateTime, LocalDate}
+import java.time.{ Instant, LocalDate }
 
 object Query {
 
@@ -740,7 +740,7 @@ case class Query(
     value: T
   ): Seq[Query.Function] = {
     value match {
-      case None | _: UUID | _: LocalDate | _: DateTime | _: Int | _: Long | _: Number | _: Unit => Nil
+      case None | _: UUID | _: LocalDate | _: Instant | _: Int | _: Long | _: Number | _: Unit => Nil
       case Some(v) => applicableFunctions(functions, v)
       case _ => functions
     }
