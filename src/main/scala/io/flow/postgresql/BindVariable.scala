@@ -3,7 +3,7 @@ package io.flow.postgresql
 import java.util.UUID
 
 import anorm.NamedParameter
-import org.joda.time.{DateTime, LocalDate}
+import java.time.{ Instant, LocalDate }
 
 sealed trait BindVariable[T] extends Product with Serializable {
 
@@ -38,7 +38,7 @@ object BindVariable {
 
       case v: UUID => BindVariable.Uuid(name, v)
       case v: LocalDate => BindVariable.DateVar(name, v)
-      case v: DateTime => BindVariable.DateTimeVar(name, v)
+      case v: Instant => BindVariable.DateTimeVar(name, v)
       case v: scala.Int => BindVariable.Int(name, v)
       case v: Long => BindVariable.BigInt(name, v)
       case v: Number => BindVariable.Num(name, v)
@@ -105,7 +105,7 @@ object BindVariable {
     override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }
 
-  case class DateTimeVar(override val name: String, override val v: DateTime) extends DefinedBindVariable[DateTime] {
+  case class DateTimeVar(override val name: String, override val v: Instant) extends DefinedBindVariable[Instant] {
     override val psqlType: Option[String] = Some("timestamptz")
     override def toNamedParameter: NamedParameter = NamedParameter(name, v.toString)
   }

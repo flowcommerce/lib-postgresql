@@ -1,6 +1,6 @@
 import sbt.Credentials
 
-name := "lib-postgresql-play26"
+name := "lib-postgresql-javatime"
 
 organization := "io.flow"
 
@@ -10,7 +10,7 @@ crossScalaVersions := Seq("2.12.8")
 
 version := "0.1.7"
 
-val libSuffix = ""
+val libSuffix = "-javatime"
 
 lazy val root = project
   .in(file("."))
