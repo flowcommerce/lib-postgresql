@@ -10,12 +10,14 @@ crossScalaVersions := Seq("2.12.8")
 
 version := "0.1.9"
 
+val libSuffix = ""
+
 lazy val root = project
   .in(file("."))
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% "lib-test-utils" % "0.0.38" % Test
+      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.38" % Test
     ),
     resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
