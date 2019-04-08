@@ -4,7 +4,7 @@ scala:
 jdk:
   - oraclejdk8
 
-script: sbt ++$TRAVIS_SCALA_VERSION clean compile test doc
+script: sbt ++$TRAVIS_SCALA_VERSION clean compile flowLintLib test doc
 branches:
   only:
     - master
