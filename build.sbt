@@ -8,7 +8,7 @@ scalaVersion in ThisBuild := "2.12.8"
 
 crossScalaVersions := Seq("2.12.8")
 
-version := "0.1.10"
+version := "0.1.12"
 
 val libSuffix = ""
 
@@ -38,4 +38,3 @@ publishTo := {
     Some("Artifactory Realm" at s"$host/libs-release-local")
   }
 }
-version := "0.1.11"
