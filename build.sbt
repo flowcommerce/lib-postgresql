@@ -17,7 +17,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.42" % Test
+      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.43" % Test
     ),
     resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
@@ -38,3 +38,4 @@ publishTo := {
     Some("Artifactory Realm" at s"$host/libs-release-local")
   }
 }
+version := "0.1.14"
