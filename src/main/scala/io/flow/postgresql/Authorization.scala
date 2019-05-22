@@ -10,6 +10,7 @@ object Authorization {
   case class Organization(id: String) extends Authorization
   case class Partner(id: String) extends Authorization
   case class Session(id: String) extends Authorization
+  case class Customer(number: String, sessionId: String) extends Authorization
 
   def fromUser(userId: Option[String]): Authorization = {
     userId match {
@@ -36,6 +37,14 @@ object Authorization {
     sessionId match {
       case None => Authorization.PublicOnly
       case Some(id) => Authorization.Session(id)
+    }
+  }
+
+  def fromCustomer(customerNumber: Option[String], sessionId: Option[String]): Authorization = {
+    (customerNumber, sessionId) match {
+      case (Some(cn), Some(sid)) => Authorization.Customer(cn, sid)
+      case (None, Some(sid)) => Authorization.Session(sid)
+      case _ => Authorization.PublicOnly
     }
   }
 
