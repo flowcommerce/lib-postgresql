@@ -8,7 +8,7 @@ scalaVersion in ThisBuild := "2.12.8"
 
 crossScalaVersions := Seq("2.12.8")
 
-version := "0.1.17"
+version := "0.1.18"
 
 val libSuffix = ""
 
