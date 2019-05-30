@@ -8,7 +8,7 @@ scalaVersion in ThisBuild := "2.12.8"
 
 crossScalaVersions := Seq("2.12.8")
 
-version := "0.1.20"
+version := "0.1.21"
 
 val libSuffix = "-javatime"
 
@@ -17,7 +17,7 @@ lazy val root = project
   .settings(
     libraryDependencies ++= Seq(
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.48" % Test
+      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.49" % Test
     ),
     resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
