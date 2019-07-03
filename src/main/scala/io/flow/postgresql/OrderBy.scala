@@ -121,7 +121,7 @@ object OrderBy {
                 case Left(error) => Left(error)
               }
             case "abs" | "lower" => Right(Clause(direction, withTable(column, tableName), function = Some(function)))
-            case _ => sys.error(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
+            case _ => Left(s"Invalid sort function.  Must be one of [${ValidFunctions.mkString(",")}]")
           }
         } else {
           Left(s"$value: Invalid function[$function]. Must be one of: " + ValidFunctions.mkString(", "))
