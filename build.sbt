@@ -19,7 +19,7 @@ lazy val root = project
       "com.typesafe.play" %% "anorm" % "2.5.3",
       "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.68" % Test
     ),
-    resolvers += "Typesafe repository" at "http://repo.typesafe.com/typesafe/releases/",
+    resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
     resolvers += "Artifactory" at "https://flow.jfrog.io/flow/libs-release/",
     credentials += Credentials(
