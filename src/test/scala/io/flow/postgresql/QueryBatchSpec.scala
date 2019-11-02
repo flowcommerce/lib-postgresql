@@ -1,11 +1,11 @@
 package io.flow.postgresql
 
-import play.api.db.Database
-import io.flow.test.utils.FlowPlaySpec
+import java.util.UUID
 
-class QueryBatchSpec extends FlowPlaySpec {
+import io.flow.postgresql.db.TestDatabase
+import org.scalatest.{FunSpec, Matchers}
 
-  private[this] val db: Database = init[Database]
+class QueryBatchSpec extends FunSpec with Matchers {
 
   private[this] val UpsertUserQuery = Query(
     """
@@ -13,15 +13,16 @@ class QueryBatchSpec extends FlowPlaySpec {
       | (id, name)
       |values
       | ({id}, {name})
-      |on conflict(id)
+      |on conflict(id) do update
       | set name = {name}
       |""".stripMargin
   )
-  case class User(id: Long, name: String)
+  case class User(id: String, name: String)
 
-  def createUser(id: Long, name: String): User = {
-    db.withConnection { implicit c =>
-      UpsertUserQuery
+  def createUser(name: String): User = {
+    val id = UUID.randomUUID().toString
+    TestDatabase.withConnection { implicit c =>
+      UpsertUserQuery.withDebugging()
         .bind("id", id)
         .bind("name", name)
         .anormSql().execute()
@@ -32,9 +33,9 @@ class QueryBatchSpec extends FlowPlaySpec {
     )
   }
 
-  "batch_upsert" in {
-    val user1 = createUser(id = 1, name = "A")
-    val user2 = createUser(id = 2, name = "B")
+  it("batch_upsert") {
+    val user1 = createUser(name = "A")
+    val user2 = createUser(name = "B")
     println(s"user[${user1}] --  $user2")
   }
 
