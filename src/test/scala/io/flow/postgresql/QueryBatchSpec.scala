@@ -10,11 +10,11 @@ class QueryBatchSpec extends FlowPlaySpec {
   private[this] val UpsertUserQuery = Query(
     """
       |insert into test_users
-      |(id, name)
+      | (id, name)
       |values
-      |({id}, {name})
+      | ({id}, {name})
       |on conflict(id)
-      |set name = {name}
+      | set name = {name}
       |""".stripMargin
   )
   case class User(id: Long, name: String)
