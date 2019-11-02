@@ -1,3 +1,5 @@
+import play.sbt.PlayScala._
+
 import sbt.Credentials
 
 name := "lib-postgresql-play26"
@@ -15,9 +17,11 @@ val libSuffix = ""
 lazy val root = project
   .in(file("."))
   .settings(
-    libraryDependencies ++= Seq(
+  libraryDependencies ++= Seq(
+      jdbc,    
       "com.typesafe.play" %% "anorm" % "2.5.3",
-      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.72" % Test
+      "io.flow" %% s"lib-test-utils$libSuffix" % "0.0.72" % Test,
+      "org.postgresql" % "postgresql" % "42.2.8" % Test      
     ),
     resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",

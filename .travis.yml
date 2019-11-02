@@ -8,7 +8,13 @@ cache:
     - $HOME/.ivy2/cache
     - $HOME/.sbt
     - $HOME/.cache/coursier
-script: sbt ++$TRAVIS_SCALA_VERSION clean compile flowLintLib test doc
+services:
+  - docker
+before_script:
+  - docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD"
+  - docker run -d -p 127.0.0.1:7179:5432 flowcommerce/lib-postgresql-postgresql:latest
+script:
+  - sbt ++$TRAVIS_SCALA_VERSION clean compile flowLintLib test doc
 branches:
   only:
     - master
