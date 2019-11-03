@@ -63,7 +63,7 @@ class QueryBatchSpec extends FunSpec with Matchers {
     val name2 = randomString()
 
     TestDatabase.withConnection { implicit c =>
-      BatchQueryBuilder(UpsertUserQuery.withDebugging())
+      BatchQueryBuilder(UpsertUserQuery)
         .withRow { r => r.bind("id", "1").bind("name", name1) }
         .withRow { r => r.bind("id", "2").bind("name", name2) }
         .build()
@@ -77,7 +77,7 @@ class QueryBatchSpec extends FunSpec with Matchers {
   it("BatchQueryBuilder throws error if no rows") {
     Try {
       TestDatabase.withConnection { implicit c =>
-        BatchQueryBuilder(UpsertUserQuery.withDebugging())
+        BatchQueryBuilder(UpsertUserQuery)
           .build()
           .execute()
       }
@@ -93,7 +93,7 @@ class QueryBatchSpec extends FunSpec with Matchers {
     val name2 = randomString()
 
     TestDatabase.withConnection { implicit c =>
-      BatchQueryBuilder(UpsertUserQuery.withDebugging())
+      BatchQueryBuilder(UpsertUserQuery)
         .withRow { r => r.bind("id", "1").bind("name", name1) }
         .withRow { r => r.bind("id", "2").bind("name", name2) }
         .execute
