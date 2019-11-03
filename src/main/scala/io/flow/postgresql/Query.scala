@@ -138,7 +138,7 @@ case class Query(
     }
   }
 
-  private lazy val allBindVariables: Seq[BindVariable[_]] = {
+  private[postgresql] lazy val allBindVariables: Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
       case c: BoundQueryCondition.Column => c.variables
       case BoundQueryCondition.Static(_) => Nil
