@@ -87,7 +87,6 @@ class QueryBatchSpec extends FunSpec with Matchers {
     }
   }
 
-
   it("BatchQueryBuilder.execute") {
     val name1 = randomString()
     val name2 = randomString()
@@ -108,19 +107,14 @@ class QueryBatchSpec extends FunSpec with Matchers {
       BatchQueryBuilder(UpsertUserQuery).execute
     } should be(Array.empty)
   }
-  /*
 
   it("create users in batch") {
     val ids = 0.to(3).map { _ => UUID.randomUUID().toString }
-    val batch = ids.map { id =>
-      UpsertUserQuery.
-        .bind("id", id)
-        .bind("name", UUID.randomUUID().toString)
-      .
-    }
     TestDatabase.withConnection { implicit c =>
+      ids.foldLeft(BatchQueryBuilder(UpsertUserQuery.withDebugging())) { case (builder, id) =>
+        builder.withRow { r => r.bind("id", id).bind("name", UUID.randomUUID().toString) }
+      }.execute
     }
+    ids.map(findUserById(_).get).size should be(4)
   }
-
-   */
 }
