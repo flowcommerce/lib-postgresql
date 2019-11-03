@@ -111,10 +111,37 @@ class QueryBatchSpec extends FunSpec with Matchers {
   it("create users in batch") {
     val ids = 0.to(3).map { _ => UUID.randomUUID().toString }
     TestDatabase.withConnection { implicit c =>
-      ids.foldLeft(BatchQueryBuilder(UpsertUserQuery.withDebugging())) { case (builder, id) =>
+      ids.foldLeft(BatchQueryBuilder(UpsertUserQuery)) { case (builder, id) =>
         builder.withRow { r => r.bind("id", id).bind("name", UUID.randomUUID().toString) }
       }.execute
     }
     ids.map(findUserById(_).get).size should be(4)
+  }
+
+  it("propagates bind variables from parent query") {
+    val name = randomString()
+    TestDatabase.withConnection { implicit c =>
+      BatchQueryBuilder(UpsertUserQuery.bind("name", name))
+        .withRow { r => r.bind("id", "1") }
+        .withRow { r => r.bind("id", "2") }
+        .execute
+    }
+
+    findUserById("1").get.name should be(name)
+    findUserById("2").get.name should be(name)
+  }
+
+  it("can override parent variable") {
+    val name1 = randomString()
+    val name2 = randomString()
+    TestDatabase.withConnection { implicit c =>
+      BatchQueryBuilder(UpsertUserQuery.bind("name", name1))
+        .withRow { r => r.bind("id", "1") }
+        .withRow { r => r.bind("id", "2").bind("name", name2) }
+        .execute
+    }
+
+    findUserById("1").get.name should be(name1)
+    findUserById("2").get.name should be(name2)
   }
 }

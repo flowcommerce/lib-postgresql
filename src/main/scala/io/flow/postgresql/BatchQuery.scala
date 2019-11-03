@@ -4,6 +4,8 @@ import java.sql.Connection
 
 import anorm.BatchSql
 
+import scala.util.{Failure, Success, Try}
+
 object BatchQuery {
   // a Query object used only to collect bind variables
   val BindQuery: Query = Query("batch")
@@ -37,7 +39,17 @@ case class BatchQueryBuilder(
     if (rows.isEmpty) {
       Array.empty
     } else {
-      build().execute()(c)
+      Try {
+        build().execute()(c)
+      } match {
+        case Success(r) => r
+        case Failure(ex) => {
+          throw new RuntimeException(
+            s"Error executing batch sql query: ${ex.getMessage}\n${debuggingInfo()}",
+            ex
+          )
+        }
+      }
     }
   }
 
@@ -50,10 +62,11 @@ case class BatchQueryBuilder(
       rows.nonEmpty,
       "Must have at least one row to execute a batch sql query"
     )
-    BatchSql(
+    val parentBindVars = query.allBindVariables.map(_.toNamedParameter)
+      BatchSql(
       query.sql(),
-      rows.head.map(_.toNamedParameter),
-      rows.drop(1).map(_.map(_.toNamedParameter)): _*
+        parentBindVars ++ rows.head.map(_.toNamedParameter),
+        rows.drop(1).map { r => parentBindVars ++ r.map(_.toNamedParameter) }: _*
     )
   }
 
