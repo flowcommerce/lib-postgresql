@@ -115,7 +115,7 @@ class OrderBySpec extends FunSpec with Matchers {
     )
 
     OrderBy.parse("name,name||pg_sleep(5)--") should be(
-      Left(Seq("Sort[name,name||pg_sleep(5)--] contains invalid characters: '|', '(', ')'w"))
+      Left(Seq("Sort[name,name||pg_sleep(5)--] contains invalid characters: '|', '(', ')'"))
     )
   }
 
