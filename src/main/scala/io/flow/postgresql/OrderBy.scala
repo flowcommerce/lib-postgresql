@@ -19,9 +19,8 @@ case class OrderBy(clauses: Seq[String]) {
 
 object OrderBy {
 
-  private[this] val ValidCharacters = "_,.abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("").toSet
-  val ValidFunctions = Seq("abs", "lower", "json")
-  val ValidOrderOperators = Seq("-", "+")
+  val ValidFunctions: Set[String] = Set("abs", "lower", "json")
+  val ValidOrderOperators: Set[String] = Set("-", "+")
 
   def parse(
     value: String,
@@ -34,7 +33,7 @@ object OrderBy {
       case allClauses => {
         val clauses = allClauses.map(removeOrder).map(removeFunctions)
         clauses.find { c =>
-          c.split("").exists(!ValidCharacters.contains(_))
+          !Sanitize.isSafe(c)
         } match {
           case None => {
             val parsed: Seq[Either[String, Clause]] = allClauses.map { parseDirection(_, defaultTable) }
@@ -48,7 +47,7 @@ object OrderBy {
             }
           }
           case Some(_) => {
-            val chars = value.split("").filter(!ValidCharacters.contains(_)).distinct
+            val chars = value.split("").filter(!Sanitize.ValidCharacters.contains(_)).distinct
             Left(
               Seq(
                 s"Sort[$value] contains invalid characters: " + chars.mkString("'", "', '", "'")
