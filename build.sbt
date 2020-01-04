@@ -15,7 +15,7 @@ lazy val root = project
   .settings(
   libraryDependencies ++= Seq(
     "com.typesafe.play" %% "anorm" % "2.5.3",
-    "io.flow" %% s"lib-test-utils" % "0.0.72" % Test,
+    "io.flow" %% s"lib-test-utils" % "0.0.76" % Test,
     "org.postgresql" % "postgresql" % "42.2.8" % Test      
   ),
   resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
