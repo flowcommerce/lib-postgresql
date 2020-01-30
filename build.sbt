@@ -6,15 +6,15 @@ organization := "io.flow"
 
 scalaVersion := "2.13.1"
 
-version := "0.1.43"
+version := "0.1.44"
 
 lazy val root = project
   .in(file("."))
   .settings(
   libraryDependencies ++= Seq(
     "org.playframework.anorm" %% "anorm" % "2.6.5",
-    "io.flow" %% "lib-test-utils-play28" % "0.0.78" % Test,
-    "org.postgresql" % "postgresql" % "42.2.9" % Test      
+    "io.flow" %% "lib-test-utils-play28" % "0.0.81" % Test,
+    "org.postgresql" % "postgresql" % "42.2.9" % Test
   ),
   resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
   resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
