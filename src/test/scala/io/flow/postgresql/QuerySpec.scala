@@ -460,7 +460,7 @@ class QuerySpec extends FunSpec with Matchers {
     validate(
       Query("select * from users").
         and("age = {age}::bigint").
-        bind("age", 5l),
+        bind("age", 5L),
       "select * from users where age = {age}::bigint",
       "select * from users where age = 5"
     )
@@ -468,7 +468,7 @@ class QuerySpec extends FunSpec with Matchers {
     validate(
       Query("select * from users").
         and("age = {age}").
-        bind("age", 5l),
+        bind("age", 5L),
       "select * from users where age = {age}",
       "select * from users where age = 5"
     )
