@@ -13,8 +13,8 @@ lazy val root = project
   .settings(
   libraryDependencies ++= Seq(
     "org.playframework.anorm" %% "anorm" % "2.6.5",
-    "io.flow" %% "lib-test-utils-play28" % "0.0.81" % Test,
-    "org.postgresql" % "postgresql" % "42.2.9" % Test
+    "io.flow" %% "lib-test-utils-play28" % "0.0.83" % Test,
+    "org.postgresql" % "postgresql" % "42.2.10" % Test
   ),
   resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
   resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
