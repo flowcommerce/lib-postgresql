@@ -22,9 +22,15 @@ object OrderBy {
   val ValidFunctions: Set[String] = Set("abs", "lower", "json")
   val ValidOrderOperators: Set[String] = Set("-", "+")
 
+  /**
+   * @param validValues If specified, a list of valid values for this order by. For example,
+   *                    if you specify Set("id", "name") then we will validate that the provided
+   *                    value (once parsed) contains only the columns 'id', and 'name'
+   */
   def parse(
     value: String,
-    defaultTable: Option[String] = None
+    defaultTable: Option[String] = None,
+    validValues: Option[Set[String]] = None,
   ): Either[Seq[String], OrderBy] = {
     value.trim.split(",").map(_.trim).filter(_.nonEmpty).toList match {
       case Nil => {
@@ -36,24 +42,57 @@ object OrderBy {
           !Sanitize.isSafe(c)
         } match {
           case None => {
-            val parsed: Seq[Either[String, Clause]] = allClauses.map { parseDirection(_, defaultTable) }
-            parsed.collect {case Left(x) => x } match {
-              case Nil => Right(
-                OrderBy(
-                  parsed.collect {case Right(x) => x }.map(_.sql)
-                )
-              )
+            val validatedValues = validateValues(clauses, validValues)
+            val validatedClauses = validateClauses(allClauses, defaultTable)
+
+            Seq(
+              validatedValues, validatedClauses
+            ).flatMap(_.left.getOrElse(Nil)).toList match {
+              case Nil => validatedClauses.map { c => OrderBy(c.map(_.sql)) }
               case errors => Left(errors)
             }
           }
           case Some(_) => {
-            val chars = value.split("").filter(!Sanitize.ValidCharacters.contains(_)).distinct
+            val chars = value.split("").filterNot(Sanitize.ValidCharacters.contains).distinct
             Left(
               Seq(
                 s"Sort[$value] contains invalid characters: " + chars.mkString("'", "', '", "'")
               )
             )
           }
+        }
+      }
+    }
+  }
+
+  private[this] def validateClauses(clauses: List[String], defaultTable: Option[String]): Either[List[String], List[Clause]] = {
+    val all = clauses.map { parseDirection(_, defaultTable) }
+    val errors = all.collect { case Left(x) => x }
+    if (errors.isEmpty) {
+      Right(all.collect { case Right(x) => x })
+    } else {
+      Left(errors)
+    }
+  }
+
+  private[this] def format(value: String): String = value.trim.toLowerCase()
+
+  private[this] def validateValues(values: Seq[String], validValues: Option[Set[String]]): Either[Seq[String], Unit] = {
+    validValues match {
+      case None => Right(())
+      case Some(original) => {
+        val vv = original.map(format)
+        val invalid = values.filterNot { v => vv.contains(format(v)) }
+        if (invalid.isEmpty) {
+          Right(())
+        } else {
+          val msg = invalid.toList match {
+            case one :: Nil => s"value is invalid: ${one}"
+            case _ => s"values are invalid: ${invalid.mkString(", ")}"
+          }
+          Left(Seq(
+            s"The following $msg. Must be one of: ${vv.mkString(", ")}"
+          ))
         }
       }
     }

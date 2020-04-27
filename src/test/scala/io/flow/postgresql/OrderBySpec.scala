@@ -3,6 +3,19 @@ package io.flow.postgresql
 import org.scalatest.{FunSpec, Matchers}
 
 class OrderBySpec extends FunSpec with Matchers {
+  def rightOrErrors[T](value: Either[_, T]): T = {
+    value match {
+      case Left(_) => sys.error(s"Expected a right value but got: $value")
+      case Right(r) => r
+    }
+  }
+
+  def leftOrErrors[T](value: Either[T, _]): T = {
+    value match {
+      case Left(r) => r
+      case Right(_) => sys.error(s"Expected a left value but got: $value")
+    }
+  }
 
   it("removeOrder") {
     OrderBy.removeOrder("name") should be("name")
@@ -93,6 +106,37 @@ class OrderBySpec extends FunSpec with Matchers {
     OrderBy.parse("json(foo)", None) should be(
       Left(Seq("Error defining json query column[foo]: Must be column.field[.field]"))
     )
+  }
+
+  it("respects validValues") {
+    def expectValid(value: String) = {
+      rightOrErrors {
+        OrderBy.parse(value, validValues = Some(Set("id", "name")))
+      }.sql
+    }
+    expectValid("id") should equal(Some("id"))
+    expectValid("+id") should equal(Some("id"))
+    expectValid("-id") should equal(Some("id desc"))
+    expectValid("lower(id)") should equal(Some("lower(id)"))
+    expectValid("name") should equal(Some("name"))
+    expectValid("-name") should equal(Some("name desc"))
+    expectValid("lower(id), -name") should equal(Some("lower(id), name desc"))
+
+    expectValid("ID") should equal(Some("ID"))
+    expectValid("NAME") should equal(Some("NAME"))
+  }
+
+  it("reports errors if clause contains a value not specified in validValues") {
+    def expectInvalid(value: String) = {
+      leftOrErrors {
+        OrderBy.parse(value, validValues = Some(Set("id", "name")))
+      } should equal(
+        Seq("The following value is invalid: foo. Must be one of: id, name")
+      )
+    }
+    expectInvalid("foo")
+    expectInvalid("-foo")
+    expectInvalid("lower(foo)")
   }
 
   it("only allows parentheses around known functions") {
