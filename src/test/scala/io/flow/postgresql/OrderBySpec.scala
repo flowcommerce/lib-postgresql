@@ -121,6 +121,9 @@ class OrderBySpec extends FunSpec with Matchers {
     expectValid("name") should equal(Some("name"))
     expectValid("-name") should equal(Some("name desc"))
     expectValid("lower(id), -name") should equal(Some("lower(id), name desc"))
+
+    expectValid("ID") should equal(Some("ID"))
+    expectValid("NAME") should equal(Some("NAME"))
   }
 
   it("reports errors if clause contains a value not specified in validValues") {

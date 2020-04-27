@@ -75,11 +75,14 @@ object OrderBy {
     }
   }
 
+  private[this] def format(value: String): String = value.trim.toLowerCase()
+
   private[this] def validateValues(values: Seq[String], validValues: Option[Set[String]]): Either[Seq[String], Unit] = {
     validValues match {
       case None => Right(())
-      case Some(vv) => {
-        val invalid = values.filterNot(vv.contains)
+      case Some(original) => {
+        val vv = original.map(format)
+        val invalid = values.filterNot { v => vv.contains(format(v)) }
         if (invalid.isEmpty) {
           Right(())
         } else {
