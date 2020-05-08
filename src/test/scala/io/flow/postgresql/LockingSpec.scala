@@ -1,9 +1,10 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class LockingSpec extends FunSpec with Matchers {
+class LockingSpec extends AnyFunSpec with Matchers {
 
   it("locking clause") {
     val query = Query("select * from table").equals("col", "val").limit(10).locking("for update skip locked")

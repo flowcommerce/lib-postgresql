@@ -1,8 +1,9 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class SanitizeSpec extends FunSpec with Matchers {
+class SanitizeSpec extends AnyFunSpec with Matchers {
 
   it("prevents sql injection") {
     Sanitize.isSafe("foo") should be(true)

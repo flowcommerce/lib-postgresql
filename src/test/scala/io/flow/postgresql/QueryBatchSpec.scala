@@ -5,11 +5,12 @@ import java.util.UUID
 import anorm.SqlParser
 import io.flow.postgresql.db.TestDatabase
 import io.flow.util.Random
-import org.scalatest.{FunSpec, Matchers}
 
 import scala.util.{Failure, Success, Try}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class QueryBatchSpec extends FunSpec with Matchers {
+class QueryBatchSpec extends AnyFunSpec with Matchers {
 
   private[this] val SelectUserQuery = Query("select name from test_users")
 
