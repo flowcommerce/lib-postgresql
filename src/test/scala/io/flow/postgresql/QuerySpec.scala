@@ -4,9 +4,11 @@ import scala.util.{Failure, Success, Try}
 import java.util.UUID
 
 import org.joda.time.{DateTime, LocalDate}
-import org.scalatest.{Assertion, FunSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class QuerySpec extends FunSpec with Matchers {
+class QuerySpec extends AnyFunSpec with Matchers {
 
   def validate(query: Query, sql: String, interpolate: String): Assertion = {
     query.sql should be(sql)

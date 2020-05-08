@@ -1,8 +1,9 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class BindVariableSpec extends FunSpec with Matchers {
+class BindVariableSpec extends AnyFunSpec with Matchers {
 
   it("safeName") {
     BindVariable.safeName("user") should be("user")

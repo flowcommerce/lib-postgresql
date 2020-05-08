@@ -1,8 +1,9 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class BulkDeleteSpec extends FunSpec with Matchers {
+class BulkDeleteSpec extends AnyFunSpec with Matchers {
 
   it("empty list") {
     val emptyList: List[String] = Nil

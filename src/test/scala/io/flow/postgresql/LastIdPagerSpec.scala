@@ -1,8 +1,9 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class LastIdPagerSpec extends FunSpec with Matchers {
+class LastIdPagerSpec extends AnyFunSpec with Matchers {
 
   it("empty list") {
     val pager = Pager.byLastId[Long, Long](_ => Nil, identity)

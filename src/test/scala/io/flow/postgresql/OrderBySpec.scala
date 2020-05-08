@@ -1,8 +1,9 @@
 package io.flow.postgresql
 
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class OrderBySpec extends FunSpec with Matchers {
+class OrderBySpec extends AnyFunSpec with Matchers {
   def rightOrErrors[T](value: Either[_, T]): T = {
     value match {
       case Left(_) => sys.error(s"Expected a right value but got: $value")
