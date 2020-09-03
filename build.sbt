@@ -4,7 +4,7 @@ name := "lib-postgresql-play28"
 
 organization := "io.flow"
 
-scalaVersion := "2.13.1"
+scalaVersion := "2.13.3"
 
 version := "0.1.57"
 

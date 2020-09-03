@@ -11,8 +11,8 @@ import org.scalatest.matchers.should.Matchers
 class QuerySpec extends AnyFunSpec with Matchers {
 
   def validate(query: Query, sql: String, interpolate: String): Assertion = {
-    query.sql should be(sql)
-    query.interpolate should be(interpolate)
+    query.sql() should be(sql)
+    query.interpolate() should be(interpolate)
   }
 
   it("base") {

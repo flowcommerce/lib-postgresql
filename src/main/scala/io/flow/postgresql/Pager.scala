@@ -96,19 +96,19 @@ trait GenericPager[T, Context] extends Iterator[T] {
     * Tests whether this iterator can provide another element.
     * @return `true` if a subsequent call to `next` will yield an element, `false` otherwise.
     */
-  def hasNext: Boolean = currentPageIterator.hasNext
+  override def hasNext: Boolean = currentPageIterator.hasNext
 
   /**
     * Produces the next element of this iterator.
     * @return the next element of this iterator, if `hasNext` is `true`, throws a [[scala.NoSuchElementException]] otherwise.
     */
-  def next: T = {
+  override def next(): T = {
     if (hasNext) nextAndReload()
     else throw new NoSuchElementException()
   }
 
   private def nextAndReload(): T = {
-    val next = currentPageIterator.next
+    val next = currentPageIterator.next()
     currentContext = updateContext(currentContext, next)
     // end of the current page: load the next one
     if (!currentPageIterator.hasNext) loadPage()

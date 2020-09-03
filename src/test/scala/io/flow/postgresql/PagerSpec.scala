@@ -23,9 +23,9 @@ class PagerSpec extends AnyFunSpec with Matchers {
     }
 
     pager.hasNext should be(true)
-    pager.next should be(1)
+    pager.next() should be(1)
     pager.hasNext should be(true)
-    pager.next should be(2)
+    pager.next() should be(2)
     pager.hasNext should be(false)
   }
 
@@ -38,9 +38,9 @@ class PagerSpec extends AnyFunSpec with Matchers {
       }
     }
 
-    pager.next should be("a")
-    pager.next should be("b")
-    pager.next should be("c")
+    pager.next() should be("a")
+    pager.next() should be("b")
+    pager.next() should be("c")
     pager.hasNext should be(false)
   }
 

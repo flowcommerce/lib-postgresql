@@ -25,9 +25,9 @@ class LastIdPagerSpec extends AnyFunSpec with Matchers {
     )
 
     pager.hasNext should be(true)
-    pager.next should be("*")
+    pager.next() should be("*")
     pager.hasNext should be(true)
-    pager.next should be("**")
+    pager.next() should be("**")
     pager.hasNext should be(false)
   }
 
@@ -43,11 +43,11 @@ class LastIdPagerSpec extends AnyFunSpec with Matchers {
     )
 
     pager.hasNext should be(true)
-    pager.next should be("*")
+    pager.next() should be("*")
     pager.hasNext should be(true)
-    pager.next should be("**")
+    pager.next() should be("**")
     pager.hasNext should be(true)
-    pager.next should be("****")
+    pager.next() should be("****")
     pager.hasNext should be(false)
   }
 
