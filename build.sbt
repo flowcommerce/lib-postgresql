@@ -12,7 +12,7 @@ lazy val root = project
   .in(file("."))
   .settings(
   libraryDependencies ++= Seq(
-    "org.playframework.anorm" %% "anorm" % "2.6.7",
+    "org.playframework.anorm" %% "anorm" % "2.6.8",
     "io.flow" %% "lib-test-utils-play28" % "0.1.12" % Test,
     "org.postgresql" % "postgresql" % "42.2.18" % Test
   ),
