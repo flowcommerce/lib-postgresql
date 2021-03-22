@@ -16,7 +16,7 @@ def assert(cmd, msg)
 end
 
 def format(path)
-  path.sub(/.*lib-postgresql\//, 'https://github.com/flowcommerce/lib-postgresql/blob/master/')
+  path.sub(/.*lib-postgresql\//, 'https://github.com/flowcommerce/lib-postgresql/blob/primary/')
 end
 
 def different?(updated, original)
