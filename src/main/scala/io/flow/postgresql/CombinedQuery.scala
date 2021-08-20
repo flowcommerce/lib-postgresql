@@ -46,7 +46,7 @@ case class Except(
   override val debug: Boolean = false
 ) extends CombinedQuery {
 
-  override val operation = "intersect"
+  override val operation = "except"
 
   override def withDebugging(): SQLBase = this.copy(debug = true)
 }
