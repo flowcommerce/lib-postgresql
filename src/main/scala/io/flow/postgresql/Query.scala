@@ -34,13 +34,13 @@ case class Query(
   orderBy: Seq[String] = Nil,
   limit: Option[Long] = None,
   offset: Option[Long] = None,
-  debug: Boolean = false,
+  override val debug: Boolean = false,
   groupBy: Seq[String] = Nil,
   having: Option[String] = None,
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil,
   reservedBindVariableNames: Set[String] = Set.empty
-) {
+) extends SQLBase {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
     resolveBoundConditions(
@@ -604,7 +604,7 @@ case class Query(
    * Useful only for debugging. Returns the sql query with all bind
    * variables interpolated for easy inspection.
    */
-  def interpolate(): String = {
+  override def interpolate(): String = {
     allBindVariables.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
@@ -685,18 +685,10 @@ case class Query(
     }
   }
 
-  def as[T](
-    parser: anorm.ResultSetParser[T]
-  ) (
-    implicit c: java.sql.Connection
-  ): T = {
-    anormSql().as(parser)
-  }
-
   /**
     * Returns debugging information about this query
     */
-  def debuggingInfo(): String = {
+  override def debuggingInfo(): String = {
     if (allBindVariables.isEmpty) {
       interpolate()
     } else {
@@ -711,15 +703,8 @@ case class Query(
     }
   }
 
-  /**
-    * Prepares the sql query for anorm, including any bind variables.
-    */
-  def anormSql(): anorm.SimpleSql[anorm.Row] = {
-    if (debug) {
-      println(debuggingInfo())
-    }
-    SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
-  }
+  override def namedParameters(): Seq[NamedParameter] =
+    allBindVariables.map(_.toNamedParameter)
 
   private[this] def withFunctions[T](
     name: String,
