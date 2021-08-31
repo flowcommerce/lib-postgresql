@@ -400,7 +400,7 @@ case class Query(
     * Adds a bind variable to this query. You will receive a runtime
     * error if this bind variable is already defined.
     */
-  def bind[T](
+  override def bind[T](
     name: String,
     value: T
   ): Query = {

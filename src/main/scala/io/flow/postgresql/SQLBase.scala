@@ -11,6 +11,10 @@ trait SQLBase {
 
   def union(query: SQLBase) = Union(this, query)
 
+  def intersect(query: SQLBase) = Intersect(this, query)
+
+  def except(query: SQLBase) = Except(this, query)
+
   def debuggingInfo(): String
 
   def withDebugging(): SQLBase
@@ -32,7 +36,12 @@ trait SQLBase {
     if (debug) {
       println(debuggingInfo())
     }
-
     SQL(sql()).on(namedParameters(): _*)
   }
+
+  /**
+    * Adds a bind variable to this query. You will receive a runtime
+    * error if this bind variable is already defined.
+    */
+  def bind[T](name: String, value: T): SQLBase
 }

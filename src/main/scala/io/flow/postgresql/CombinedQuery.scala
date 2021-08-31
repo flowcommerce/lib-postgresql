@@ -16,15 +16,31 @@ sealed trait CombinedQuery extends SQLBase {
 
   override def interpolate(): String = s"(${left.interpolate()})\n$operation\n(${right.interpolate()})"
 
+  def bind[T](
+    name: String,
+    value: Option[T]
+  ): SQLBase = {
+    value match {
+      case None => bind(name, ())
+      case Some(v) => bind(name, v)
+    }
+  }
 }
 
 case class Union(
   left: SQLBase,
   right: SQLBase,
-  override val debug: Boolean = false
+  debug: Boolean = false,
 ) extends CombinedQuery {
 
   override val operation = "union"
+
+  override def bind[T](name: String, value: T): SQLBase = {
+    this.copy(
+      left = left.bind(name, value),
+      right = right.bind(name, value)
+    )
+  }
 
   override def withDebugging(): SQLBase = this.copy(debug = true)
 }
@@ -32,10 +48,17 @@ case class Union(
 case class Intersect(
   left: SQLBase,
   right: SQLBase,
-  override val debug: Boolean = false
+  debug: Boolean = false,
 ) extends CombinedQuery {
 
   override val operation = "intersect"
+
+  override def bind[T](name: String, value: T): SQLBase = {
+    this.copy(
+      left = left.bind(name, value),
+      right = right.bind(name, value)
+    )
+  }
 
   override def withDebugging(): SQLBase = this.copy(debug = true)
 }
@@ -43,10 +66,17 @@ case class Intersect(
 case class Except(
   left: SQLBase,
   right: SQLBase,
-  override val debug: Boolean = false
+  debug: Boolean = false,
 ) extends CombinedQuery {
 
   override val operation = "except"
+
+  override def bind[T](name: String, value: T): SQLBase = {
+    this.copy(
+      left = left.bind(name, value),
+      right = right.bind(name, value)
+    )
+  }
 
   override def withDebugging(): SQLBase = this.copy(debug = true)
 }
