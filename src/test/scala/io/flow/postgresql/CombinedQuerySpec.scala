@@ -13,9 +13,6 @@ class CombinedQuerySpec extends AnyFunSpec with Matchers {
     combinedQuery.interpolate() should be(interpolate.trim)
   }
 
-  def createUnion() =
-    Query("select id from users where id = '12345'") union Query("select id from users where id = '54321'")
-
   it("union") {
     val query1 = Query("select id from users").equals("id", "12345")
     val query2 = Query("select id from users").equals("id", "54321")
