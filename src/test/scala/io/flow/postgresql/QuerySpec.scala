@@ -712,12 +712,12 @@ class QuerySpec extends AnyFunSpec with Matchers {
   }
 
   it("debuggingInfo simple query") {
-    Query("select * from users").debuggingInfo() should be("select * from users")
+    Query("select * from users").debuggingInfo should be("select * from users")
   }
 
   it("debuggingInfo query w/ bind vars") {
     val q = Query("select * from users").equals("id", Some(5))
-    q.debuggingInfo() should be(
+    q.debuggingInfo should be(
       Seq(
         "select * from users where id = {id}::int",
         " - id: 5",

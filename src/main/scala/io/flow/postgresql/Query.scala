@@ -42,6 +42,9 @@ case class Query(
   reservedBindVariableNames: Set[String] = Set.empty
 ) extends SQLBase {
 
+  override def withReserved(reserved: Set[String]): SQLBase =
+    this.copy(reservedBindVariableNames = reservedBindVariableNames ++ reserved)
+
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
     resolveBoundConditions(
       reservedKeys = explicitBindVariables.map(_.name).toSet ++ reservedBindVariableNames,
@@ -59,6 +62,7 @@ case class Query(
     remaining: Seq[QueryCondition],
     resolved: Seq[BoundQueryCondition]
   ): Seq[BoundQueryCondition] = {
+    println(reservedKeys)
     remaining.toList match {
       case Nil => resolved
       case one :: rest => {
@@ -688,7 +692,7 @@ case class Query(
   /**
     * Returns debugging information about this query
     */
-  override def debuggingInfo(): String = {
+  override def debuggingInfo: String = {
     if (allBindVariables.isEmpty) {
       interpolate()
     } else {
@@ -703,7 +707,7 @@ case class Query(
     }
   }
 
-  override def namedParameters(): Seq[NamedParameter] =
+  override def namedParameters: Seq[NamedParameter] =
     allBindVariables.map(_.toNamedParameter)
 
   private[this] def withFunctions[T](

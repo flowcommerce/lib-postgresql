@@ -7,7 +7,9 @@ trait SQLBase {
 
   def sql(): String
 
-  def namedParameters(): Seq[NamedParameter]
+  def namedParameters: Seq[NamedParameter]
+
+  private[postgresql] def withReserved(reserved: Set[String]): SQLBase
 
   def union(query: SQLBase) = Union(this, query)
 
@@ -15,7 +17,7 @@ trait SQLBase {
 
   def except(query: SQLBase) = Except(this, query)
 
-  def debuggingInfo(): String
+  def debuggingInfo: String
 
   def withDebugging(): SQLBase
 
@@ -34,9 +36,9 @@ trait SQLBase {
     */
   def anormSql(): anorm.SimpleSql[anorm.Row] = {
     if (debug) {
-      println(debuggingInfo())
+      println(debuggingInfo)
     }
-    SQL(sql()).on(namedParameters(): _*)
+    SQL(sql()).on(namedParameters: _*)
   }
 
   /**
