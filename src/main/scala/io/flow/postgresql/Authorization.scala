@@ -8,6 +8,7 @@ object Authorization {
   case object All extends Authorization
   case class User(id: String) extends Authorization
   case class Organization(id: String) extends Authorization
+  case class Channel(id: String) extends Authorization
   case class Partner(id: String) extends Authorization
   case class Session(id: String) extends Authorization
 
@@ -36,6 +37,13 @@ object Authorization {
     sessionId match {
       case None => Authorization.PublicOnly
       case Some(id) => Authorization.Session(id)
+    }
+  }
+
+  def fromChannel(channelId: Option[String]): Authorization = {
+    channelId match {
+      case None => Authorization.PublicOnly
+      case Some(id) => Authorization.Channel(id)
     }
   }
 
