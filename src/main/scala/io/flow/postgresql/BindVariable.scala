@@ -51,7 +51,11 @@ object BindVariable {
 
   def safeName(name: String): String = {
     val idx = name.lastIndexOf(".")
-    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }
+    val simpleName = if (idx > 0) {
+      name.substring(idx + 1)
+    } else {
+      name
+    }
 
     val sb = new StringBuilder()
     simpleName.toLowerCase.trim.foreach { ch =>
@@ -67,8 +71,10 @@ object BindVariable {
     val safeName = sb.toString()
     if (safeName.isEmpty) {
       DefaultBindName
+    } else if (safeName.endsWith("_")) {
+      safeName.substring(0, safeName.size - 1)
     } else {
-      if (safeName.endsWith("_")) safeName.substring(0, safeName.size - 1) else safeName
+      safeName
     }
   }
 
