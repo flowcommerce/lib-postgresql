@@ -49,29 +49,26 @@ object BindVariable {
     }
   }
 
-  private[this] val LeadingUnderscores = """^_+""".r
-  private[this] val MultiUnderscores = """__+""".r
-  private[this] val TrailingUnderscores = """_+$""".r
-  private[this] val ScrubName = """[^\w\d\_]""".r
-
   def safeName(name: String): String = {
     val idx = name.lastIndexOf(".")
-    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }.toLowerCase.trim
+    val simpleName = if (idx > 0) { name.substring(idx + 1) } else { name }
 
-    val safeName = LeadingUnderscores.replaceAllIn(
-      TrailingUnderscores.replaceAllIn(
-        MultiUnderscores.replaceAllIn(
-          ScrubName.replaceAllIn(simpleName.trim, "_"),
-          "_"
-        ),
-        ""),
-      ""
-    )
+    val sb = new StringBuilder()
+    simpleName.toLowerCase.trim.foreach { ch =>
+      val ascii = ch.toInt
+      // ASCII 0-9 or a-z
+      if ((ascii >= 48 && ascii <= 57) || (ascii >= 97 && ascii <= 122)) {
+        sb.append(ch)
+      } else if (sb.length > 0 && sb.last != '_') {
+        sb.append('_')
+      }
+    }
 
+    val safeName = sb.toString()
     if (safeName.isEmpty) {
       DefaultBindName
     } else {
-      safeName
+      if (safeName.endsWith("_")) safeName.substring(0, safeName.size - 1) else safeName
     }
   }
 
