@@ -59,11 +59,9 @@ object BindVariable {
 
     val sb = new StringBuilder()
     simpleName.toLowerCase.trim.foreach { ch =>
-      val ascii = ch.toInt
-      // ASCII 0-9 or a-z
-      if ((ascii >= 48 && ascii <= 57) || (ascii >= 97 && ascii <= 122)) {
+      if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'z')) {
         sb.append(ch)
-      } else if (sb.length > 0 && sb.last != '_') {
+      } else if (sb.nonEmpty && sb.last != '_') {
         sb.append('_')
       }
     }
@@ -72,7 +70,7 @@ object BindVariable {
     if (safeName.isEmpty) {
       DefaultBindName
     } else if (safeName.endsWith("_")) {
-      safeName.substring(0, safeName.size - 1)
+      safeName.substring(0, safeName.length - 1)
     } else {
       safeName
     }
