@@ -66,13 +66,12 @@ object BindVariable {
       }
     }
 
-    val safeName = sb.toString()
-    if (safeName.isEmpty) {
+    if (sb.isEmpty) {
       DefaultBindName
-    } else if (safeName.endsWith("_")) {
-      safeName.substring(0, safeName.length - 1)
+    } else if (sb.last == '_') {
+      sb.substring(0, sb.length - 1)
     } else {
-      safeName
+      sb.toString()
     }
   }
 
