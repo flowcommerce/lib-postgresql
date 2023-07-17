@@ -29,6 +29,15 @@ begin
 end;
 $$;
 
+create or replace function journal.is_journal_erm_schema(p_schema_name in varchar) returns boolean language plpgsql IMMUTABLE as $$
+declare
+  v_position smallint;
+begin
+  select position('journal_erm' in p_schema_name) into v_position;
+  return v_position > 0;
+end;
+$$;
+
 create or replace function journal.refresh_journal_delete_trigger(
   p_source_schema_name in varchar, p_source_table_name in varchar,
   p_target_schema_name in varchar, p_target_table_name in varchar
@@ -53,7 +62,7 @@ begin
   for row in (select column_name from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
     v_sql := v_sql || ', ' || row.column_name;
 
-    if row.column_name = 'updated_by_user_id' then
+    if row.column_name = 'updated_by_user_id' and NOT journal.is_journal_erm_schema(p_target_schema_name) then
       v_target_sql := v_target_sql || ', journal.get_deleted_by_user_id()';
     else
       v_target_sql := v_target_sql || ', old.' || row.column_name;
