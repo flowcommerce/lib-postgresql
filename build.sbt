@@ -5,6 +5,7 @@ name := "lib-postgresql-play28"
 organization := "io.flow"
 
 scalaVersion := "2.13.10"
+ThisBuild / javacOptions ++= Seq("-source", "17", "-target", "17")
 
 enablePlugins(GitVersioning)
 git.useGitDescribe := true
@@ -23,7 +24,7 @@ lazy val allScalacOptions = Seq(
 lazy val root = project
   .in(file("."))
   .settings(
-    scalacOptions ++= allScalacOptions,
+    scalacOptions ++= allScalacOptions ++ Seq("-release", "17"),
   libraryDependencies ++= Seq(
     "org.playframework.anorm" %% "anorm" % "2.7.0",
     "io.flow" %% "lib-test-utils-play28" % "0.2.12" % Test,
@@ -39,6 +40,10 @@ lazy val root = project
     System.getenv("ARTIFACTORY_PASSWORD")
   ),
   testOptions += Tests.Argument("-oF"),
+  Test / javaOptions ++= Seq(
+    "--add-exports=java.base/sun.security.x509=ALL-UNNAMED",
+    "--add-opens=java.base/sun.security.ssl=ALL-UNNAMED"
+  ),
   Test / javaOptions += "-Dconfig.file=conf/test.conf"
 )
 
