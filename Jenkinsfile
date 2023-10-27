@@ -3,7 +3,8 @@ pipeline {
     kubernetes {
       inheritFrom 'default'
       containerTemplates([
-        containerTemplate(name: 'dd', image: 'flowcommerce/dependence-day:0.0.24', command: 'cat', ttyEnabled: true),
+        containerTemplate(name: 'postgres', image: 'flowcommerce/lib-postgresql-postgresql:latest', alwaysPullImage: true, resourceRequestMemory: '1Gi'),
+        containerTemplate(name: 'play', image: 'flowdocker/play_builder:latest-java17-jammy', command: 'cat', ttyEnabled: true),
       ])
     }
   }
@@ -28,11 +29,30 @@ pipeline {
         }
       }
     }
-
+    stage('SBT Test') {
+      steps {
+        container('play') {
+          script {
+            try {
+              sh '''
+                echo "$(date) - waiting for database to start"
+                until pg_isready -h localhost
+                do
+                  sleep 10
+                done
+                sbt clean compile flowLintLib test doc
+              '''
+            } finally {
+                junit allowEmptyResults: true, testResults: '**/target/test-reports/*.xml'
+            }
+          }
+        }
+      }
+    }
     stage('Release') {
       when { branch 'main' }
       steps {
-        container('dd') {
+        container('play') {
           withCredentials([
             usernamePassword(
               credentialsId: 'jenkins-x-jfrog',
