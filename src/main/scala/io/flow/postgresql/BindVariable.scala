@@ -28,8 +28,7 @@ object BindVariable {
 
   val DefaultBindName = "bind"
 
-  /**
-    * Creates a typed instances of a BindVariable for all types
+  /** Creates a typed instances of a BindVariable for all types
     */
   def apply(name: String, value: Any): BindVariable[_] = {
     value match {

@@ -55,17 +55,17 @@ object QueryCondition {
 
   case class Not(condition: QueryCondition) extends QueryCondition
 
-  /**
-    * Generates a unique bind variable name from the specified input
+  /** Generates a unique bind variable name from the specified input
     *
-    * @param original Preferred name of bind variable - will be used if unique,
-    *                 otherwise we generate a unique version.
+    * @param original
+    *   Preferred name of bind variable - will be used if unique, otherwise we generate a unique version.
     */
   @tailrec
   private[this] def uniqueName(reservedKeys: Set[String], original: String, count: Int = 1): String = {
     assert(count >= 1)
     val scrubbedName = BindVariable.safeName(
-      if (count == 1) { original } else { s"$original$count" }
+      if (count == 1) { original }
+      else { s"$original$count" }
     )
 
     if (reservedKeys.contains(scrubbedName)) {

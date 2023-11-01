@@ -8,12 +8,9 @@ object Query {
 
   trait Function
 
-  /**
-   * Helper trait to allow caller to apply functions to the columns or
-   * values in the query. A common use case is to apply
-   * lower(text(...)) functions to enable case insensitive text
-   * matching.
-   */
+  /** Helper trait to allow caller to apply functions to the columns or values in the query. A common use case is to
+    * apply lower(text(...)) functions to enable case insensitive text matching.
+    */
   object Function {
 
     case object Lower extends Function {
@@ -50,9 +47,8 @@ case class Query(
     )
   }
 
-  /**
-    * Recursively bind all the variables. Primary use case is to
-    * make sure all subquery bind variables are namespaces properly
+  /** Recursively bind all the variables. Primary use case is to make sure all subquery bind variables are namespaces
+    * properly
     */
   private[this] def resolveBoundConditions(
     reservedKeys: Set[String],
@@ -152,13 +148,14 @@ case class Query(
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables
         }
       }
-      case c: BoundQueryCondition.OrClause => c.conditions.flatMap {
-        case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution not supported")
-        case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
-        case _: BoundQueryCondition.Static => Nil
-        case c: BoundQueryCondition.Column => c.variables
-        case c: BoundQueryCondition.Subquery => c.query.allBindVariables
-      }
+      case c: BoundQueryCondition.OrClause =>
+        c.conditions.flatMap {
+          case _: BoundQueryCondition.OrClause => sys.error("Recursive or resolution not supported")
+          case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
+          case _: BoundQueryCondition.Static => Nil
+          case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Subquery => c.query.allBindVariables
+        }
     }
   }
 
@@ -166,12 +163,16 @@ case class Query(
   def equals[T](column: String, value: T): Query = operation(column, "=", value)
 
   def equalsIgnoreCase[T](column: String, value: Option[T]): Query = optionalOperation(
-    column, "=", value,
+    column,
+    "=",
+    value,
     columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
     valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
   )
   def equalsIgnoreCase[T](column: String, value: T): Query = operation(
-    column, "=", value,
+    column,
+    "=",
+    value,
     columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
     valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
   )
@@ -180,12 +181,16 @@ case class Query(
   def notEquals[T](column: String, value: T): Query = operation(column, "!=", value)
 
   def notEqualsIgnoreCase[T](column: String, value: Option[T]): Query = optionalOperation(
-    column, "!=", value,
+    column,
+    "!=",
+    value,
     columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
     valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
   )
   def notEqualsIgnoreCase[T](column: String, value: T): Query = operation(
-    column, "!=", value,
+    column,
+    "!=",
+    value,
     columnFunctions = Seq(Query.Function.Lower, Query.Function.Trim),
     valueFunctions = Seq(Query.Function.Lower, Query.Function.Trim)
   )
@@ -318,7 +323,7 @@ case class Query(
     column: String,
     values: Seq[T],
     columnFunctions: Seq[Query.Function],
-    valueFunctions: Seq[Query.Function],
+    valueFunctions: Seq[Query.Function]
   ): Query = {
     assert(
       operator == "in" || operator == "not in",
@@ -396,9 +401,7 @@ case class Query(
     }
   }
 
-  /**
-    * Adds a bind variable to this query. You will receive a runtime
-    * error if this bind variable is already defined.
+  /** Adds a bind variable to this query. You will receive a runtime error if this bind variable is already defined.
     */
   def bind[T](
     name: String,
@@ -408,8 +411,9 @@ case class Query(
     assert(
       safe == name.toLowerCase.trim,
       s"Invalid bind variable name[$name]" + (
-        if (safe == BindVariable.DefaultBindName) { "" } else { s" suggest: $safe" }
-        )
+        if (safe == BindVariable.DefaultBindName) { "" }
+        else { s" suggest: $safe" }
+      )
     )
     assert(
       !explicitBindVariables.exists { bv => BindVariable.safeName(bv.name) == safe },
@@ -509,7 +513,7 @@ case class Query(
     )
   }
 
-  def groupBy(value: Option[String]): Query ={
+  def groupBy(value: Option[String]): Query = {
     value match {
       case None => this
       case Some(v) => groupBy(v)
@@ -520,7 +524,7 @@ case class Query(
     this.copy(groupBy = groupBy ++ Seq(value))
   }
 
-  def having(value: Option[String]): Query ={
+  def having(value: Option[String]): Query = {
     this.copy(having = value)
   }
 
@@ -563,8 +567,7 @@ case class Query(
 
   def locking(clause: String): Query = copy(locking = Some(clause))
 
-  /**
-    * Creates the full text of the sql query
+  /** Creates the full text of the sql query
     */
   def sql(): String = {
     val query = boundConditions match {
@@ -591,36 +594,27 @@ case class Query(
     ).flatten.mkString(" ")
   }
 
-  /**
-   * Turns on debugging of this query.
-   */
+  /** Turns on debugging of this query.
+    */
   def withDebugging(): Query = {
     this.copy(
       debug = true
     )
   }
 
-  /**
-   * Useful only for debugging. Returns the sql query with all bind
-   * variables interpolated for easy inspection.
-   */
+  /** Useful only for debugging. Returns the sql query with all bind variables interpolated for easy inspection.
+    */
   def interpolate(): String = {
     allBindVariables.foldLeft(sql()) { case (query, bindVar) =>
       bindVar match {
         case BindVariable.Int(name, value) => {
-          query.
-            replace(bindVar.sqlPlaceholder, value.toString).
-            replace(s"{$name}", value.toString)
+          query.replace(bindVar.sqlPlaceholder, value.toString).replace(s"{$name}", value.toString)
         }
         case BindVariable.BigInt(name, value) => {
-          query.
-            replace(bindVar.sqlPlaceholder, value.toString).
-            replace(s"{$name}", value.toString)
+          query.replace(bindVar.sqlPlaceholder, value.toString).replace(s"{$name}", value.toString)
         }
         case BindVariable.Num(name, value) => {
-          query.
-            replace(bindVar.sqlPlaceholder, value.toString).
-            replace(s"{$name}", value.toString)
+          query.replace(bindVar.sqlPlaceholder, value.toString).replace(s"{$name}", value.toString)
         }
         case BindVariable.Uuid(_, value) => {
           query.replace(bindVar.sqlPlaceholder, s"'$value'::uuid")
@@ -649,7 +643,8 @@ case class Query(
 
           case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
             val exprColumn = withFunctions(c.column, c.columnFunctions, bindVar.value)
-            val exprValue = withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
+            val exprValue =
+              withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, bindVar.value)
             s"$exprColumn ${c.operator} $exprValue"
           }
 
@@ -657,9 +652,15 @@ case class Query(
             val exprColumn = withFunctions(c.column, c.columnFunctions, multiple.headOption.map(_.value))
 
             s"$exprColumn ${c.operator} (%s)".format(
-              multiple.map { bindVar =>
-                withFunctions(bindVar.sqlPlaceholder, c.valueFunctions ++ bindVar.defaultValueFunctions, multiple.head)
-              }.mkString(", ")
+              multiple
+                .map { bindVar =>
+                  withFunctions(
+                    bindVar.sqlPlaceholder,
+                    c.valueFunctions ++ bindVar.defaultValueFunctions,
+                    multiple.head
+                  )
+                }
+                .mkString(", ")
             )
           }
         }
@@ -687,14 +688,13 @@ case class Query(
 
   def as[T](
     parser: anorm.ResultSetParser[T]
-  ) (
-    implicit c: java.sql.Connection
+  )(implicit
+    c: java.sql.Connection
   ): T = {
     anormSql().as(parser)
   }
 
-  /**
-    * Returns debugging information about this query
+  /** Returns debugging information about this query
     */
   def debuggingInfo(): String = {
     if (allBindVariables.isEmpty) {
@@ -702,17 +702,18 @@ case class Query(
     } else {
       Seq(
         sql(),
-        allBindVariables.map { bv =>
-          s" - ${bv.name}: ${bv.value.getOrElse("null")}"
-        }.mkString("\n"),
+        allBindVariables
+          .map { bv =>
+            s" - ${bv.name}: ${bv.value.getOrElse("null")}"
+          }
+          .mkString("\n"),
         "Interpolated:",
         interpolate()
       ).mkString("\n")
     }
   }
 
-  /**
-    * Prepares the sql query for anorm, including any bind variables.
+  /** Prepares the sql query for anorm, including any bind variables.
     */
   def anormSql(): anorm.SimpleSql[anorm.Row] = {
     if (debug) {
@@ -731,9 +732,8 @@ case class Query(
     }
   }
 
-  /**
-    * Doesn't makes sense to apply lower/trim on all types. select only
-    * applicable filters based on the type of the value
+  /** Doesn't makes sense to apply lower/trim on all types. select only applicable filters based on the type of the
+    * value
     */
   private[this] def applicableFunctions[T](
     functions: Seq[Query.Function],

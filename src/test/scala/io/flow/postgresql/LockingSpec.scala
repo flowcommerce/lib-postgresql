@@ -3,7 +3,6 @@ package io.flow.postgresql
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class LockingSpec extends AnyFunSpec with Matchers {
 
   it("locking clause") {

@@ -316,7 +316,6 @@ class QuerySpec extends AnyFunSpec with Matchers {
       "select * from users where guid in " + guids.mkString("('", "'::uuid, '", "'::uuid)")
     )
   }
-  
 
   it("datetime") {
     val ts = DateTime.now
@@ -332,7 +331,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
       s"select * from users where users.created_at = '$ts'::timestamptz"
     )
   }
-  
+
   it("unit") {
     validate(
       Query("insert into users (first) values ({first})").bind("first", None),
@@ -355,13 +354,12 @@ class QuerySpec extends AnyFunSpec with Matchers {
     )
 
     validate(
-      Query("select * from users").
-        text(
-          "users.email",
-          "mike@flow.io",
-          columnFunctions = Seq(Query.Function.Lower),
-          valueFunctions = Seq(Query.Function.Trim, Query.Function.Lower)
-        ),
+      Query("select * from users").text(
+        "users.email",
+        "mike@flow.io",
+        columnFunctions = Seq(Query.Function.Lower),
+        valueFunctions = Seq(Query.Function.Trim, Query.Function.Lower)
+      ),
       "select * from users where lower(users.email) = trim(lower({email}))",
       "select * from users where lower(users.email) = trim(lower('mike@flow.io'))"
     )
@@ -369,9 +367,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("text with same variable twice") {
     validate(
-      Query("select * from users").
-        text("users.email", "mike@flow.io").
-        text("EMAIL", "paolo@flow.io"),
+      Query("select * from users").text("users.email", "mike@flow.io").text("EMAIL", "paolo@flow.io"),
       "select * from users where users.email = trim({email}) and EMAIL = trim({email2})",
       "select * from users where users.email = trim('mike@flow.io') and EMAIL = trim('paolo@flow.io')"
     )
@@ -432,9 +428,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
     )
 
     validate(
-      Query("select * from users").
-        and("email = {email}").
-        bind("email", Some("mike@flow.io")),
+      Query("select * from users").and("email = {email}").bind("email", Some("mike@flow.io")),
       "select * from users where email = {email}",
       "select * from users where email = 'mike@flow.io'"
     )
@@ -442,17 +436,13 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("bind int") {
     validate(
-      Query("select * from users").
-        and("age = {age}::int").
-        bind("age", 5),
+      Query("select * from users").and("age = {age}::int").bind("age", 5),
       "select * from users where age = {age}::int",
       "select * from users where age = 5"
     )
 
     validate(
-      Query("select * from users").
-        and("age = {age}").
-        bind("age", 5),
+      Query("select * from users").and("age = {age}").bind("age", 5),
       "select * from users where age = {age}",
       "select * from users where age = 5"
     )
@@ -460,17 +450,13 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("bind long") {
     validate(
-      Query("select * from users").
-        and("age = {age}::bigint").
-        bind("age", 5L),
+      Query("select * from users").and("age = {age}::bigint").bind("age", 5L),
       "select * from users where age = {age}::bigint",
       "select * from users where age = 5"
     )
 
     validate(
-      Query("select * from users").
-        and("age = {age}").
-        bind("age", 5L),
+      Query("select * from users").and("age = {age}").bind("age", 5L),
       "select * from users where age = {age}",
       "select * from users where age = 5"
     )
@@ -478,17 +464,13 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("bind numeric") {
     validate(
-      Query("select * from users").
-        and("age = {age}::numeric").
-        bind("age", 5.5),
+      Query("select * from users").and("age = {age}::numeric").bind("age", 5.5),
       "select * from users where age = {age}::numeric",
       "select * from users where age = 5.5"
     )
 
     validate(
-      Query("select * from users").
-        and("age = {age}").
-        bind("age", 5.5),
+      Query("select * from users").and("age = {age}").bind("age", 5.5),
       "select * from users where age = {age}",
       "select * from users where age = 5.5"
     )
@@ -498,8 +480,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
     val guid = UUID.randomUUID
 
     validate(
-      Query("select * from users where guid = {guid}::uuid").
-      bind("guid", guid),
+      Query("select * from users where guid = {guid}::uuid").bind("guid", guid),
       "select * from users where guid = {guid}::uuid",
       s"select * from users where guid = '$guid'::uuid"
     )
@@ -507,8 +488,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("nested bind variables work") {
     validate(
-      Query("select * from users where email = {email}").
-        bind("email", "mike@flow.io"),
+      Query("select * from users where email = {email}").bind("email", "mike@flow.io"),
       "select * from users where email = {email}",
       "select * from users where email = 'mike@flow.io'"
     )
@@ -516,9 +496,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("bind with duplicate variable name raises an error") {
     Try {
-      Query("select * from users").
-        bind("email", "mike@flow.io").
-        bind("EMAIL", Some("paolo@flow.io"))
+      Query("select * from users").bind("email", "mike@flow.io").bind("EMAIL", Some("paolo@flow.io"))
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
@@ -529,8 +507,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("bind validates name is safe") {
     Try {
-      Query("select * from users").
-        bind("!@#", "mike@flow.io")
+      Query("select * from users").bind("!@#", "mike@flow.io")
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
@@ -539,8 +516,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
     }
 
     Try {
-      Query("select * from users").
-        bind("user.email", "mike@flow.io")
+      Query("select * from users").bind("user.email", "mike@flow.io")
     } match {
       case Success(_) => fail("Expected error for duplicate bind variable")
       case Failure(ex) => {
@@ -623,11 +599,11 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("groupBy and orderBy") {
     validate(
-      Query("select * from users").
-        orderBy(Some("users.y")).
-        orderBy(Some("users.x")).
-        groupBy(Some("users.id")).
-        groupBy(Some("users.name")),
+      Query("select * from users")
+        .orderBy(Some("users.y"))
+        .orderBy(Some("users.x"))
+        .groupBy(Some("users.id"))
+        .groupBy(Some("users.name")),
       "select * from users group by users.id, users.name order by users.y, users.x",
       "select * from users group by users.id, users.name order by users.y, users.x"
     )
@@ -635,23 +611,19 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("groupBy") {
     validate(
-      Query("select * from users").
-        groupBy(None),
+      Query("select * from users").groupBy(None),
       "select * from users",
       "select * from users"
     )
 
     validate(
-      Query("select * from users").
-        groupBy(Some("users.id")),
+      Query("select * from users").groupBy(Some("users.id")),
       "select * from users group by users.id",
       "select * from users group by users.id"
     )
 
     validate(
-      Query("select * from users").
-        groupBy(Some("users.id")).
-        groupBy(Some("users.name")),
+      Query("select * from users").groupBy(Some("users.id")).groupBy(Some("users.name")),
       "select * from users group by users.id, users.name",
       "select * from users group by users.id, users.name"
     )
@@ -673,23 +645,19 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("orderBy") {
     validate(
-      Query("select * from users").
-        orderBy(None),
+      Query("select * from users").orderBy(None),
       "select * from users",
       "select * from users"
     )
 
     validate(
-      Query("select * from users").
-        orderBy(Some("users.created_at")),
+      Query("select * from users").orderBy(Some("users.created_at")),
       "select * from users order by users.created_at",
       "select * from users order by users.created_at"
     )
 
     validate(
-      Query("select * from users").
-        orderBy(Some("lower(email)")).
-        orderBy(Some("users.created_at")),
+      Query("select * from users").orderBy(Some("lower(email)")).orderBy(Some("users.created_at")),
       "select * from users order by lower(email), users.created_at",
       "select * from users order by lower(email), users.created_at"
     )
@@ -751,9 +719,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
   it("in with subquery and explicit bind variable") {
     val experience = Query("select * from experiences")
-    val filter = Query("select id from experiences").
-      and("status = {status}").
-      bind("status", "draft")
+    val filter = Query("select id from experiences").and("status = {status}").bind("status", "draft")
 
     validate(
       experience.in("id", filter),
