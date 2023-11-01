@@ -147,11 +147,13 @@ class OrderBySpec extends AnyFunSpec with Matchers {
   }
 
   it("validates function names") {
-    OrderBy.parse("case(user)") should be(Left(
-      Seq(
-        "Sort[case(user)] contains invalid characters: '(', ')'"
+    OrderBy.parse("case(user)") should be(
+      Left(
+        Seq(
+          "Sort[case(user)] contains invalid characters: '(', ')'"
+        )
       )
-    ))
+    )
   }
 
   it("prevents sql injection") {
@@ -176,11 +178,13 @@ class OrderBySpec extends AnyFunSpec with Matchers {
   it("rejects invalid function") {
     OrderBy.parse("foo(key)") should be(Left(Seq("Sort[foo(key)] contains invalid characters: '(', ')'")))
     OrderBy.parse("key,foo(key)") should be(Left(Seq("Sort[key,foo(key)] contains invalid characters: '(', ')'")))
-    OrderBy.parse("key,foo(key),bar(key)") should be(Left(
-      Seq(
-        "Sort[key,foo(key),bar(key)] contains invalid characters: '(', ')'"
+    OrderBy.parse("key,foo(key),bar(key)") should be(
+      Left(
+        Seq(
+          "Sort[key,foo(key),bar(key)] contains invalid characters: '(', ')'"
+        )
       )
-    ))
+    )
   }
 
   it("append") {

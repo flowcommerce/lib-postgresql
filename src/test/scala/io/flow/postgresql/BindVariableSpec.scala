@@ -42,5 +42,5 @@ class BindVariableSpec extends AnyFunSpec with Matchers {
     BindVariable.safeName("____") should be("bind")
     BindVariable.safeName("üšéŸß") should be("bind")
   }
-  
+
 }

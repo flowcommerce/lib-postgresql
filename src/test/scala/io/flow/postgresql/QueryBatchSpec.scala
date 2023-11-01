@@ -35,9 +35,10 @@ class QueryBatchSpec extends AnyFunSpec with Matchers {
       SelectUserQuery
         .equals("id", id)
         .as(SqlParser.str("name").*)
-        .headOption.map { n =>
-        User(id = id, name = n)
-      }
+        .headOption
+        .map { n =>
+          User(id = id, name = n)
+        }
     }
   }
 
@@ -47,7 +48,8 @@ class QueryBatchSpec extends AnyFunSpec with Matchers {
       UpsertUserQuery
         .bind("id", id)
         .bind("name", name)
-        .anormSql().execute()
+        .anormSql()
+        .execute()
     }
     findUserById(id).get
   }
@@ -84,7 +86,8 @@ class QueryBatchSpec extends AnyFunSpec with Matchers {
       }
     } match {
       case Success(_) => sys.error("Expected error")
-      case Failure(ex) => ex.getMessage.contains("Must have at least one row to execute a batch sql query") should be(true)
+      case Failure(ex) =>
+        ex.getMessage.contains("Must have at least one row to execute a batch sql query") should be(true)
     }
   }
 
@@ -112,9 +115,11 @@ class QueryBatchSpec extends AnyFunSpec with Matchers {
   it("create users in batch") {
     val ids = 0.to(3).map { _ => UUID.randomUUID().toString }
     TestDatabase.withConnection { implicit c =>
-      ids.foldLeft(BatchQueryBuilder(UpsertUserQuery)) { case (builder, id) =>
-        builder.withRow { r => r.bind("id", id).bind("name", UUID.randomUUID().toString) }
-      }.execute
+      ids
+        .foldLeft(BatchQueryBuilder(UpsertUserQuery)) { case (builder, id) =>
+          builder.withRow { r => r.bind("id", id).bind("name", UUID.randomUUID().toString) }
+        }
+        .execute
     }
     ids.map(findUserById(_).get).size should be(4)
   }

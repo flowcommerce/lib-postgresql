@@ -11,22 +11,15 @@ object BatchQuery {
   val BindQuery: Query = Query("batch")
 }
 
-/**
-  * Simple interface to use the Query bind API to create a BatchSql
-  * anorm instance to allow you to write multiple records in DB with
-  * one DB call.
+/** Simple interface to use the Query bind API to create a BatchSql anorm instance to allow you to write multiple
+  * records in DB with one DB call.
   *
-  * Example:
-  * TestDatabase.withConnection { implicit c =>
-  *   BatchQueryBuilder(UpsertUserQuery)
-  *     .withRow { r => r.bind("id", "1").bind("name", name1) }
-  *     .withRow { r => r.bind("id", "2").bind("name", name2) }
-  *     .execute()
-  * }
+  * Example: TestDatabase.withConnection { implicit c => BatchQueryBuilder(UpsertUserQuery) .withRow { r => r.bind("id",
+  * "1").bind("name", name1) } .withRow { r => r.bind("id", "2").bind("name", name2) } .execute() }
   */
 case class BatchQueryBuilder(
   query: Query,
-  rows: Seq[Seq[BindVariable[_]]] = Nil,
+  rows: Seq[Seq[BindVariable[_]]] = Nil
 ) {
 
   def withRow(f: Query => Query): BatchQueryBuilder = {
@@ -63,29 +56,27 @@ case class BatchQueryBuilder(
       "Must have at least one row to execute a batch sql query"
     )
     val parentBindVars = query.allBindVariables.map(_.toNamedParameter)
-      BatchSql(
+    BatchSql(
       query.sql(),
-        parentBindVars ++ rows.head.map(_.toNamedParameter),
-        rows.drop(1).map { r => parentBindVars ++ r.map(_.toNamedParameter) }: _*
+      parentBindVars ++ rows.head.map(_.toNamedParameter),
+      rows.drop(1).map { r => parentBindVars ++ r.map(_.toNamedParameter) }: _*
     )
   }
 
-  /**
-    * Returns debugging information about this query
+  /** Returns debugging information about this query
     */
   def debuggingInfo(): String = {
     Seq(
       "Batch SQL Query",
       query.sql(),
       rows.zipWithIndex.map { case (r, i) =>
-        (Seq(s"Row ${i+1}:") ++ r.map { bv =>
+        (Seq(s"Row ${i + 1}:") ++ r.map { bv =>
           s" - ${bv.name}: ${bv.value.getOrElse("null")}"
         }).mkString("\n")
       }.toList match {
         case Nil => " - no rows specified"
         case data => data.mkString("\n")
       }
-
     ).mkString("\n")
   }
 }

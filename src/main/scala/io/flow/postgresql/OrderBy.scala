@@ -7,8 +7,7 @@ case class OrderBy(clauses: Seq[String]) {
     case multiple => Some(multiple.mkString(", "))
   }
 
-  /**
-    * Creates a new OrderBy with this clause appended
+  /** Creates a new OrderBy with this clause appended
     */
   def append(clause: String): OrderBy = {
     OrderBy(
@@ -22,15 +21,14 @@ object OrderBy {
   val ValidFunctions: Set[String] = Set("abs", "lower", "json")
   val ValidOrderOperators: Set[String] = Set("-", "+")
 
-  /**
-   * @param validValues If specified, a list of valid values for this order by. For example,
-   *                    if you specify Set("id", "name") then we will validate that the provided
-   *                    value (once parsed) contains only the columns 'id', and 'name'
-   */
+  /** @param validValues
+    *   If specified, a list of valid values for this order by. For example, if you specify Set("id", "name") then we
+    *   will validate that the provided value (once parsed) contains only the columns 'id', and 'name'
+    */
   def parse(
     value: String,
     defaultTable: Option[String] = None,
-    validValues: Option[Set[String]] = None,
+    validValues: Option[Set[String]] = None
   ): Either[Seq[String], OrderBy] = {
     value.trim.split(",").map(_.trim).filter(_.nonEmpty).toList match {
       case Nil => {
@@ -46,7 +44,8 @@ object OrderBy {
             val validatedClauses = validateClauses(allClauses, defaultTable)
 
             Seq(
-              validatedValues, validatedClauses
+              validatedValues,
+              validatedClauses
             ).flatMap(_.left.getOrElse(Nil)).toList match {
               case Nil => validatedClauses.map { c => OrderBy(c.map(_.sql)) }
               case errors => Left(errors)
@@ -65,7 +64,10 @@ object OrderBy {
     }
   }
 
-  private[this] def validateClauses(clauses: List[String], defaultTable: Option[String]): Either[List[String], List[Clause]] = {
+  private[this] def validateClauses(
+    clauses: List[String],
+    defaultTable: Option[String]
+  ): Either[List[String], List[Clause]] = {
     val all = clauses.map { parseDirection(_, defaultTable) }
     val errors = all.collect { case Left(x) => x }
     if (errors.isEmpty) {
@@ -90,9 +92,11 @@ object OrderBy {
             case one :: Nil => s"value is invalid: ${one}"
             case _ => s"values are invalid: ${invalid.mkString(", ")}"
           }
-          Left(Seq(
-            s"The following $msg. Must be one of: ${vv.mkString(", ")}"
-          ))
+          Left(
+            Seq(
+              s"The following $msg. Must be one of: ${vv.mkString(", ")}"
+            )
+          )
         }
       }
     }
@@ -111,7 +115,7 @@ object OrderBy {
   private[postgresql] def removeFunctions(clause: String): String = {
     ValidFunctions.fold(clause) { case (c, f) =>
       if (c.startsWith(s"$f(") && c.endsWith(")")) {
-        c.substring(0, c.length-1).substring(f.length + 1)
+        c.substring(0, c.length - 1).substring(f.length + 1)
       } else {
         c
       }
@@ -190,12 +194,13 @@ object OrderBy {
   }
 
   private[this] def withJson(
-   path: String
+    path: String
   ): Either[String, String] = {
     path.split("\\.") match {
-      case Array(column, parent, field) => Right(s"(${column.toString}->>'${parent.toString}')::jsonb->'${field.toString}'")
+      case Array(column, parent, field) =>
+        Right(s"(${column.toString}->>'${parent.toString}')::jsonb->'${field.toString}'")
       case Array(column, field) => Right(s"$column->>'$field'")
-      case _ =>  Left(s"Error defining json query column[$path]: Must be column.field[.field]")
+      case _ => Left(s"Error defining json query column[$path]: Must be column.field[.field]")
     }
   }
 
