@@ -15,10 +15,6 @@ class QuerySpec extends AnyFunSpec with Matchers {
     query.interpolate() should be(interpolate)
   }
 
-  it("example") {
-    println(Query("select * from users").or("id = 1 or id = 2").and("status = 'active'").interpolate())
-  }
-
   it("base") {
     validate(
       Query("select 1"),
