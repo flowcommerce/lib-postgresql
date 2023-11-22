@@ -357,7 +357,7 @@ case class Query(
     def hasSpace(v: String) = v.contains(" ")
 
     // special case the simple clauses like 'id=5'
-    value.split("=", 2).toList.map(_.trim) match {
+    value.split("=").toList.map(_.trim) match {
       case a :: Nil if !hasSpace(a) => value
       case a :: b :: Nil if !hasSpace(a) && !hasSpace(b) => value
       case _ => s"($value)"
@@ -367,16 +367,13 @@ case class Query(
   def or(
     clause: Option[String]
   ): Query = {
-    clause match {
-      case None => this
-      case Some(v) => or(v)
-    }
+    or(clause.toSeq)
   }
 
   def or(
     clause: String
   ): Query = {
-    and(clause)
+    or(Seq(clause))
   }
 
   def orClause(
