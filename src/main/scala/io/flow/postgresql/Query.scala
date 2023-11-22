@@ -348,8 +348,19 @@ case class Query(
   ): Query = {
     clauses.distinct match {
       case Nil => this
-      case one :: Nil => and(one)
+      case one :: Nil => and(maybeWrapInParens(one))
       case multiple => and("(" + multiple.mkString(" or ") + ")")
+    }
+  }
+
+  private[this] def maybeWrapInParens(value: String): String = {
+    def hasSpace(v: String) = v.contains(" ")
+
+    // special case the simple clauses like 'id=5'
+    value.split("=", 2).toList.map(_.trim) match {
+      case a :: Nil if !hasSpace(a) => value
+      case a :: b :: Nil if !hasSpace(a) && !hasSpace(b) => value
+      case _ => s"($value)"
     }
   }
 

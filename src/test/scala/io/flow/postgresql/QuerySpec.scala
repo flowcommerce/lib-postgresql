@@ -418,6 +418,18 @@ class QuerySpec extends AnyFunSpec with Matchers {
       "select * from users where (email is not null or name is not null)",
       "select * from users where (email is not null or name is not null)"
     )
+
+    validate(
+      Query("select * from users").or(Seq("email is not null or name is not null")),
+      "select * from users where (email is not null or name is not null)",
+      "select * from users where (email is not null or name is not null)"
+    )
+
+    validate(
+      Query("select * from users").or("email is not null").or("name is not null"),
+      "select * from users where email is not null and name is not null",
+      "select * from users where email is not null and name is not null"
+    )
   }
 
   it("bind") {
