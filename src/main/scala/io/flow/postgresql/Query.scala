@@ -36,7 +36,8 @@ case class Query(
   having: Option[String] = None,
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil,
-  reservedBindVariableNames: Set[String] = Set.empty
+  reservedBindVariableNames: Set[String] = Set.empty,
+  orClausesToWrap: Seq[(String, String)] = Nil
 ) {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
@@ -348,7 +349,20 @@ case class Query(
   ): Query = {
     clauses.distinct match {
       case Nil => this
-      case one :: Nil => and(maybeWrapInParens(one))
+      case one :: Nil => {
+        val wrapped = maybeWrapInParens(one)
+        val updatedQuery = and(one)
+        if (wrapped != one) {
+          // We want to log instances where the query would be changed in production before we apply
+          // this change. Thus leave the query as is but note that there would have been an or
+          // clause this change would wrap. We'll log this later in execution.
+          updatedQuery.copy(
+            orClausesToWrap = this.orClausesToWrap ++ Seq((one, wrapped))
+          )
+        } else {
+          updatedQuery
+        }
+      }
       case multiple => and("(" + multiple.mkString(" or ") + ")")
     }
   }
@@ -727,7 +741,20 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
+    debugOrClausesToWrap()
     SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
+  }
+
+  private[this] def debugOrClausesToWrap(): Unit = {
+    if (orClausesToWrap.nonEmpty) {
+      def debug(msg: String): Unit = println(s"[QueryOrClauseDebug] $msg")
+
+      debug("The following query has 1 or more or clauses that we would wrap")
+      orClausesToWrap.foreach { case (original, wrapped) =>
+        debug(s" - $original => $wrapped")
+      }
+      debug(s"QUERY: ${interpolate()}")
+    }
   }
 
   private[this] def withFunctions[T](
