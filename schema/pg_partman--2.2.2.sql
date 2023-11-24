@@ -4042,6 +4042,14 @@ LOOP
             END CASE;
         END IF;
 
+        -- MANUAL MODIFICATION: If no children tables exist, consider the last partition to be the previous one
+        IF v_last_partition_timestamp IS NULL THEN
+            SELECT suffix_timestamp INTO v_last_partition_timestamp FROM partman.show_partition_name(v_row.parent_table, (now() - v_row.partition_interval::interval)::text);
+        END IF;
+        IF p_debug THEN
+            RAISE NOTICE 'run_maint: v_last_partition_timestamp: %', v_last_partition_timestamp;
+        END IF;
+
         -- Loop through child tables starting from highest to get current max value in partition set
         -- Avoids doing a scan on entire partition set and/or getting any values accidentally in parent.
         FOR v_row_max_time IN
@@ -4065,6 +4073,12 @@ LOOP
                 EXIT;
             END IF;
         END LOOP;
+
+        -- MANUAL MODIFICATION: If no children tables exist, consider the current partition to be the previous one
+        IF v_current_partition_timestamp IS NULL THEN
+            SELECT suffix_timestamp INTO v_current_partition_timestamp FROM partman.show_partition_name(v_row.parent_table, (now() - v_row.partition_interval::interval)::text);
+        END IF;
+
         -- Check for values in the parent table. If they are there and greater than all child values, use that instead
         -- This allows maintenance to continue working properly if there is a large gap in data insertion. Data will remain in parent, but new tables will be created
         IF v_row.epoch = false THEN
