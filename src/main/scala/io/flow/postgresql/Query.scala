@@ -1,8 +1,10 @@
 package io.flow.postgresql
 
 import anorm._
-import java.util.UUID
 import org.joda.time.{DateTime, LocalDate}
+
+import java.util.UUID
+import scala.annotation.tailrec
 
 object Query {
 
@@ -747,13 +749,13 @@ case class Query(
 
   private[this] def debugOrClausesToWrap(): Unit = {
     if (orClausesToWrap.nonEmpty) {
-      def debug(msg: String): Unit = println(s"[QueryOrClauseDebug] $msg")
-
-      debug("The following query has 1 or more or clauses that we would wrap")
-      orClausesToWrap.foreach { case (original, wrapped) =>
-        debug(s" - $original => $wrapped")
-      }
-      debug(s"QUERY: ${interpolate()}")
+      PrintOnce.printIfNew(
+        orClausesToWrap.foldLeft(
+          "[QueryOrClauseDebug] The following query has 1 or more or clauses that we would wrap"
+        ) { case (m, clause) =>
+          m + s"\n - ${clause._1} => ${clause._2}"
+        } + s"\nQUERY: ${sql()}"
+      )
     }
   }
 
@@ -770,6 +772,7 @@ case class Query(
   /** Doesn't makes sense to apply lower/trim on all types. select only applicable filters based on the type of the
     * value
     */
+  @tailrec
   private[this] def applicableFunctions[T](
     functions: Seq[Query.Function],
     value: T
@@ -781,4 +784,13 @@ case class Query(
     }
   }
 
+}
+
+object PrintOnce {
+  private[this] val seen = collection.mutable.Set[String]()
+  def printIfNew(msg: String): Unit = {
+    if (seen.add(msg)) {
+      println(msg)
+    }
+  }
 }
