@@ -1,8 +1,10 @@
 package io.flow.postgresql
 
 import anorm._
-import java.util.UUID
 import org.joda.time.{DateTime, LocalDate}
+
+import java.util.UUID
+import scala.annotation.tailrec
 
 object Query {
 
@@ -36,7 +38,8 @@ case class Query(
   having: Option[String] = None,
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil,
-  reservedBindVariableNames: Set[String] = Set.empty
+  reservedBindVariableNames: Set[String] = Set.empty,
+  orClausesToWrap: Seq[(String, String)] = Nil
 ) {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
@@ -348,24 +351,45 @@ case class Query(
   ): Query = {
     clauses.distinct match {
       case Nil => this
-      case one :: Nil => and(one)
+      case one :: Nil => {
+        val wrapped = maybeWrapInParens(one)
+        val updatedQuery = and(one)
+        if (wrapped != one) {
+          // We want to log instances where the query would be changed in production before we apply
+          // this change. Thus leave the query as is but note that there would have been an or
+          // clause this change would wrap. We'll log this later in execution.
+          updatedQuery.copy(
+            orClausesToWrap = this.orClausesToWrap ++ Seq((one, wrapped))
+          )
+        } else {
+          updatedQuery
+        }
+      }
       case multiple => and("(" + multiple.mkString(" or ") + ")")
+    }
+  }
+
+  private[this] def maybeWrapInParens(value: String): String = {
+    def hasSpace(v: String) = v.contains(" ")
+
+    // special case the simple clauses like 'id=5'
+    value.split("=").toList.map(_.trim) match {
+      case a :: Nil if !hasSpace(a) => value
+      case a :: b :: Nil if !hasSpace(a) && !hasSpace(b) => value
+      case _ => s"($value)"
     }
   }
 
   def or(
     clause: Option[String]
   ): Query = {
-    clause match {
-      case None => this
-      case Some(v) => or(v)
-    }
+    or(clause.toSeq)
   }
 
   def or(
     clause: String
   ): Query = {
-    and(clause)
+    or(Seq(clause))
   }
 
   def orClause(
@@ -719,7 +743,20 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
+    debugOrClausesToWrap()
     SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
+  }
+
+  private[this] def debugOrClausesToWrap(): Unit = {
+    if (orClausesToWrap.nonEmpty) {
+      PrintOnce.printIfNew(
+        orClausesToWrap.foldLeft(
+          "[QueryOrClauseDebug] The following query has 1 or more or clauses that we would wrap"
+        ) { case (m, clause) =>
+          m + s"\n - ${clause._1} => ${clause._2}"
+        } + s"\nQUERY: ${sql()}"
+      )
+    }
   }
 
   private[this] def withFunctions[T](
@@ -735,6 +772,7 @@ case class Query(
   /** Doesn't makes sense to apply lower/trim on all types. select only applicable filters based on the type of the
     * value
     */
+  @tailrec
   private[this] def applicableFunctions[T](
     functions: Seq[Query.Function],
     value: T
@@ -746,4 +784,13 @@ case class Query(
     }
   }
 
+}
+
+object PrintOnce {
+  private[this] val seen = collection.mutable.Set[String]()
+  def printIfNew(msg: String): Unit = {
+    if (seen.add(msg)) {
+      println(msg)
+    }
+  }
 }

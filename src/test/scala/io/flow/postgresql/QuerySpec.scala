@@ -1,12 +1,12 @@
 package io.flow.postgresql
 
-import scala.util.{Failure, Success, Try}
-import java.util.UUID
-
 import org.joda.time.{DateTime, LocalDate}
 import org.scalatest.Assertion
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.util.UUID
+import scala.util.{Failure, Success, Try}
 
 class QuerySpec extends AnyFunSpec with Matchers {
 
@@ -417,6 +417,20 @@ class QuerySpec extends AnyFunSpec with Matchers {
       Query("select * from users").or(Seq("email is not null", "name is not null")),
       "select * from users where (email is not null or name is not null)",
       "select * from users where (email is not null or name is not null)"
+    )
+
+    /* TODO: Enable this test once we remove debugOrClausesToWrap
+    validate(
+      Query("select * from users").or(Seq("email is not null or name is not null")),
+      "select * from users where (email is not null or name is not null)",
+      "select * from users where (email is not null or name is not null)"
+    )
+     */
+
+    validate(
+      Query("select * from users").or("email is not null").or("name is not null"),
+      "select * from users where email is not null and name is not null",
+      "select * from users where email is not null and name is not null"
     )
   }
 
