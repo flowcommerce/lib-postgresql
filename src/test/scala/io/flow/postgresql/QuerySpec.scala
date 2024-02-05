@@ -11,6 +11,14 @@ import scala.util.{Failure, Success, Try}
 class QuerySpec extends AnyFunSpec with Matchers {
 
   def validate(query: Query, sql: String, interpolate: String): Assertion = {
+    if (query.sql() != sql) {
+      println(s"SQL MISMATCH:")
+      println(query.sql())
+    }
+    if (query.interpolate() != interpolate) {
+      println(s"INTERPOLATE MISMATCH:")
+      println(query.interpolate())
+    }
     query.sql() should be(sql)
     query.interpolate() should be(interpolate)
   }
@@ -409,8 +417,8 @@ class QuerySpec extends AnyFunSpec with Matchers {
 
     validate(
       Query("select * from users").or(Some("email is not null")),
-      "select * from users where email is not null",
-      "select * from users where email is not null"
+      "select * from users where (email is not null)",
+      "select * from users where (email is not null)"
     )
 
     validate(
@@ -419,18 +427,16 @@ class QuerySpec extends AnyFunSpec with Matchers {
       "select * from users where (email is not null or name is not null)"
     )
 
-    /* TODO: Enable this test once we remove debugOrClausesToWrap
     validate(
       Query("select * from users").or(Seq("email is not null or name is not null")),
       "select * from users where (email is not null or name is not null)",
       "select * from users where (email is not null or name is not null)"
     )
-     */
 
     validate(
       Query("select * from users").or("email is not null").or("name is not null"),
-      "select * from users where email is not null and name is not null",
-      "select * from users where email is not null and name is not null"
+      "select * from users where (email is not null) and (name is not null)",
+      "select * from users where (email is not null) and (name is not null)"
     )
   }
 
