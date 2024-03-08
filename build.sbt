@@ -30,7 +30,7 @@ lazy val root = project
     libraryDependencies ++= Seq(
       "org.playframework.anorm" %% "anorm" % "2.7.0",
       "io.flow" %% "lib-test-utils-play28" % "0.2.24" % Test,
-      "org.postgresql" % "postgresql" % "42.7.1" % Test
+      "org.postgresql" % "postgresql" % "42.7.2" % Test
     ),
     resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
