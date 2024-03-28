@@ -29,8 +29,8 @@ lazy val root = project
     scalacOptions ++= allScalacOptions ++ Seq("-release", "17"),
     libraryDependencies ++= Seq(
       "org.playframework.anorm" %% "anorm" % "2.7.0",
-      "io.flow" %% "lib-test-utils-play28" % "0.2.27" % Test,
-      "org.postgresql" % "postgresql" % "42.7.2" % Test
+      "io.flow" %% "lib-test-utils-play28" % "0.2.28" % Test,
+      "org.postgresql" % "postgresql" % "42.7.3" % Test
     ),
     resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
     resolvers += "scalaz-bintray" at "https://dl.bintray.com/scalaz/releases",
