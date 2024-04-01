@@ -19,6 +19,10 @@ object Query {
       override def toString: String = "lower"
     }
 
+    case object Upper extends Function {
+      override def toString: String = "upper"
+    }
+
     case object Trim extends Function {
       override def toString: String = "trim"
     }
@@ -69,6 +73,14 @@ case class Query(
               resolved = resolved ++ Seq(newCondition)
             )
           }
+
+          case c: QueryCondition.Columns[_] =>
+            val newCondition = c.bind(reservedKeys)
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newCondition.variables.flatMap(_.map(_.name)).toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(newCondition)
+            )
 
           case QueryCondition.Not(cond) => {
             val not = resolveBoundConditions(reservedKeys, Seq(cond), Nil).toList match {
@@ -129,6 +141,7 @@ case class Query(
           case c: BoundQueryCondition.Not => findKeys(Seq(c.condition))
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables.map(_.name).toSet
+          case c: BoundQueryCondition.Columns => c.variables.flatMap(_.map(_.name)).toSet
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name).toSet
         }
         findKeys(rest, found ++ newKeys)
@@ -139,6 +152,7 @@ case class Query(
   private[postgresql] lazy val allBindVariables: Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
       case c: BoundQueryCondition.Column => c.variables
+      case c: BoundQueryCondition.Columns => c.variables.flatten
       case BoundQueryCondition.Static(_) => Nil
       case c: BoundQueryCondition.Subquery => c.query.allBindVariables
       case c: BoundQueryCondition.Not => {
@@ -147,6 +161,7 @@ case class Query(
           case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Columns => c.variables.flatten
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables
         }
       }
@@ -156,6 +171,7 @@ case class Query(
           case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Columns => c.variables.flatten
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables
         }
     }
@@ -270,6 +286,17 @@ case class Query(
     }
   }
 
+  def optionalInMulti[T](
+    columns: Seq[String],
+    values: Option[Seq[Seq[T]]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => inMulti(columns, v, columnFunctions, valueFunctions)
+    }
+
   def in(column: String, query: Query): Query = {
     addSubquery(column, query, "in")
   }
@@ -299,6 +326,14 @@ case class Query(
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
   }
 
+  def inMulti[T](
+    columns: Seq[String],
+    values: Seq[Seq[T]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    inMultipleClauseBuilder("in", columns, values, columnFunctions, valueFunctions)
+
   def optionalNotIn[T](
     column: String,
     values: Option[Seq[T]],
@@ -311,14 +346,32 @@ case class Query(
     }
   }
 
+  def optionalNotInMulti[T](
+    columns: Seq[String],
+    values: Option[Seq[Seq[T]]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notInMulti(columns, v, columnFunctions, valueFunctions)
+    }
+
   def notIn[T](
     column: String,
     values: Seq[T],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
-  ): Query = {
+  ): Query =
     inClauseBuilder("not in", column, values, columnFunctions, valueFunctions)
-  }
+
+  def notInMulti[T](
+    columns: Seq[String],
+    values: Seq[Seq[T]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    inMultipleClauseBuilder("not in", columns, values, columnFunctions, valueFunctions)
 
   private[this] def inClauseBuilder[T](
     operator: String,
@@ -343,6 +396,36 @@ case class Query(
         )
       )
     )
+  }
+
+  private[this] def inMultipleClauseBuilder[T](
+    operator: String,
+    columns: Seq[String],
+    values: Seq[Seq[T]],
+    columnFunctions: Seq[Seq[Query.Function]],
+    valueFunctions: Seq[Seq[Query.Function]]
+  ): Query = {
+    assert(
+      operator == "in" || operator == "not in",
+      s"Invalid operation[$operator] - must be 'in' or 'not in'"
+    )
+    values.zipWithIndex.find { case (vs, _) => vs.size != columns.size }.map { case (vs, i) => (i, vs.size) } match {
+      case Some((i, size)) =>
+        val msg = s"Invalid number of values at index $i: values[$i].size = $size while columns.size = ${columns.size}]"
+        throw new java.lang.AssertionError(msg)
+      case None =>
+        this.copy(
+          conditions = conditions ++ Seq(
+            QueryCondition.Columns(
+              columns = columns,
+              operator = operator,
+              values = values,
+              columnFunctions = columnFunctions,
+              valueFunctions = valueFunctions
+            )
+          )
+        )
+    }
   }
 
   def or(
@@ -676,6 +759,37 @@ case class Query(
         }
       }
 
+      case c: BoundQueryCondition.Columns =>
+        c.variables.toList match {
+          case Nil => "false" // Intentionally match no rows on empty list
+
+          case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
+            val exprColumn = withFunctionsMultiple(c.columns, c.columnFunctions, bindVar.map(_.value))
+            val exprValue =
+              withFunctionsMultiple(
+                names = bindVar.map(_.sqlPlaceholder),
+                functions = c.valueFunctions ++ bindVar.map(_.defaultValueFunctions),
+                values = bindVar.map(_.value)
+              )
+            s"$exprColumn ${c.operator} $exprValue"
+          }
+
+          case multiple =>
+            val values = multiple.head.map(_.value)
+            val exprColumn = withFunctionsMultiple(c.columns, c.columnFunctions, values)
+            s"$exprColumn ${c.operator} (%s)".format(
+              multiple
+                .map { bindVar =>
+                  withFunctionsMultiple(
+                    names = bindVar.map(_.sqlPlaceholder),
+                    functions = c.valueFunctions ++ bindVar.map(_.defaultValueFunctions),
+                    values = values
+                  )
+                }
+                .mkString(", ")
+            )
+        }
+
       case BoundQueryCondition.Static(expression) => expression
 
       case c: BoundQueryCondition.Subquery => {
@@ -736,11 +850,24 @@ case class Query(
     name: String,
     functions: Seq[Query.Function],
     value: T
-  ): String = {
-    applicableFunctions(functions, value).distinct.reverse.foldLeft(name) { case (acc, function) =>
-      s"$function($acc)"
-    }
-  }
+  ): String =
+    applicableFunctions(functions, value).distinct.reverse.foldLeft(name) { case (acc, function) => s"$function($acc)" }
+
+  /** Apply functions to the column or value in the query. A common use case is to apply (lower(trim(n1)),
+    * lower(trim(n2))) to enable case insensitive text matching.
+    */
+  private[this] def withFunctionsMultiple[T](
+    names: Seq[String],
+    functions: Seq[Seq[Query.Function]],
+    values: Seq[T]
+  ): String =
+    names
+      .zip(values)
+      .map(Some(_))
+      .zipAll(functions, Option.empty[(String, T)], Seq.empty)
+      .collect { case (Some((n, v)), fs) => (n, v, fs) }
+      .map { case (n, v, fs) => withFunctions(n, fs, v) }
+      .mkString("(", ", ", ")")
 
   /** Doesn't makes sense to apply lower/trim on all types. select only applicable filters based on the type of the
     * value
@@ -757,13 +884,4 @@ case class Query(
     }
   }
 
-}
-
-object PrintOnce {
-  private[this] val seen = collection.mutable.Set[String]()
-  def printIfNew(msg: String): Unit = {
-    if (seen.add(msg)) {
-      println(msg)
-    }
-  }
 }

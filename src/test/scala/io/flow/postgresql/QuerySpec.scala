@@ -287,6 +287,116 @@ class QuerySpec extends AnyFunSpec with Matchers {
     )
   }
 
+  it("in multi") {
+    validate(
+      Query("select * from users").optionalInMulti(Seq("org", "email"), None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").optionalInMulti(Seq("org", "email"), Some(Nil)),
+      "select * from users where false",
+      "select * from users where false"
+    )
+
+    validate(
+      Query("select * from users").inMulti(Seq("org", "email"), Seq(Seq("org1", "jean@flow.io"))),
+      "select * from users where (org, email) in ((trim({org}), trim({email})))",
+      "select * from users where (org, email) in ((trim('org1'), trim('jean@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users")
+        .inMulti(Seq("org", "email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2", "mike@flow.io"))),
+      "select * from users where (org, email) in ((trim({org}), trim({email})), (trim({org2}), trim({email2})))",
+      "select * from users where (org, email) in ((trim('org1'), trim('jean@flow.io')), (trim('org2'), trim('mike@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users")
+        .inMulti(Seq("org", "users.email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2", "mike@flow.io"))),
+      "select * from users where (org, users.email) in ((trim({org}), trim({email})), (trim({org2}), trim({email2})))",
+      "select * from users where (org, users.email) in ((trim('org1'), trim('jean@flow.io')), (trim('org2'), trim('mike@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users").inMulti(
+        Seq("users.email", "table.json->>'jsonfield'"),
+        Seq(Seq("j@flow.io", "jsonvalue"), Seq("m@flow.io", "jsonvalue2"))
+      ),
+      "select * from users where (users.email, table.json->>'jsonfield') in ((trim({email}), trim({json_jsonfield})), (trim({email2}), trim({json_jsonfield_2})))",
+      "select * from users where (users.email, table.json->>'jsonfield') in ((trim('j@flow.io'), trim('jsonvalue')), (trim('m@flow.io'), trim('jsonvalue2')))"
+    )
+  }
+
+  it("not in multiple") {
+    validate(
+      Query("select * from users").optionalNotIn("email", None),
+      "select * from users",
+      "select * from users"
+    )
+
+    validate(
+      Query("select * from users").optionalNotIn("email", Some(Nil)),
+      "select * from users where false",
+      "select * from users where false"
+    )
+
+    validate(
+      Query("select * from users").notInMulti(Seq("org", "email"), Seq(Seq("org1", "jean@flow.io"))),
+      "select * from users where (org, email) not in ((trim({org}), trim({email})))",
+      "select * from users where (org, email) not in ((trim('org1'), trim('jean@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users")
+        .notInMulti(Seq("org", "email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2", "mike@flow.io"))),
+      "select * from users where (org, email) not in ((trim({org}), trim({email})), (trim({org2}), trim({email2})))",
+      "select * from users where (org, email) not in ((trim('org1'), trim('jean@flow.io')), (trim('org2'), trim('mike@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users")
+        .notInMulti(Seq("org", "users.email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2", "mike@flow.io"))),
+      "select * from users where (org, users.email) not in ((trim({org}), trim({email})), (trim({org2}), trim({email2})))",
+      "select * from users where (org, users.email) not in ((trim('org1'), trim('jean@flow.io')), (trim('org2'), trim('mike@flow.io')))"
+    )
+
+    validate(
+      Query("select * from users").notInMulti(
+        Seq("users.email", "table.json->>'jsonfield'"),
+        Seq(Seq("j@flow.io", "jsonvalue"), Seq("m@flow.io", "jsonvalue2"))
+      ),
+      "select * from users where (users.email, table.json->>'jsonfield') not in ((trim({email}), trim({json_jsonfield})), (trim({email2}), trim({json_jsonfield_2})))",
+      "select * from users where (users.email, table.json->>'jsonfield') not in ((trim('j@flow.io'), trim('jsonvalue')), (trim('m@flow.io'), trim('jsonvalue2')))"
+    )
+  }
+
+  it("in multiple with datetime") {
+    val ts = DateTime.now
+    val values = Seq(Seq("org1", ts), Seq("org2", ts.plusHours(1)))
+    val extrapolated = values.collect { case Seq(v0, v1) => s"(trim('$v0'), '$v1'::timestamptz)" }.mkString(", ")
+    validate(
+      Query("select * from users").inMulti(Seq("org", "created_at"), values),
+      "select * from users where (org, created_at) in ((trim({org}), {created_at}::timestamptz), (trim({org2}), {created_at2}::timestamptz))",
+      "select * from users where (org, created_at) in (" + extrapolated + ")"
+    )
+  }
+
+  it("in multiple with functions") {
+    validate(
+      Query("select * from users").inMulti(
+        Seq("id", "org"),
+        Seq(Seq("id1", "org1"), Seq("id2", "org2")),
+        columnFunctions = Seq(Seq(Query.Function.Lower), Seq(Query.Function.Upper)),
+        valueFunctions = Seq(Seq(Query.Function.Lower, Query.Function.Trim), Seq(Query.Function.Upper))
+      ),
+      "select * from users where (lower(id), upper(org)) in ((lower(trim({id})), upper({org})), (lower(trim({id2})), upper({org2})))",
+      "select * from users where (lower(id), upper(org)) in ((lower(trim('id1')), upper('org1')), (lower(trim('id2')), upper('org2')))"
+    )
+  }
+
   it("numbers") {
     validate(
       Query("select * from users").equals("age", None),
