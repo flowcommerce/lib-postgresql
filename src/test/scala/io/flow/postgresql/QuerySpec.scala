@@ -330,8 +330,7 @@ class QuerySpec extends AnyFunSpec with Matchers {
     )
 
     a[AssertionError] should be thrownBy {
-      Query("select * from users")
-        .inMulti(Seq("org", "users.email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2")))
+      Query("select * from users").inMulti(Seq("org", "users.email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2")))
     }
 
   }
