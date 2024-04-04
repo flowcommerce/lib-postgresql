@@ -411,7 +411,8 @@ case class Query(
     )
     values.zipWithIndex.find { case (vs, _) => vs.size != columns.size }.map { case (vs, i) => (i, vs.size) } match {
       case Some((i, size)) =>
-        val msg = s"Invalid number of values at index $i: values[$i].size = $size while columns.size = ${columns.size}]"
+        val msg = s"Invalid number of values at index $i: columns.size = ${columns.size} but values[$i].size = $size." +
+          s" You must provide as many values as columns."
         throw new java.lang.AssertionError(msg)
       case None =>
         this.copy(

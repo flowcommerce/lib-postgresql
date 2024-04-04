@@ -328,6 +328,12 @@ class QuerySpec extends AnyFunSpec with Matchers {
       "select * from users where (users.email, table.json->>'jsonfield') in ((trim({email}), trim({json_jsonfield})), (trim({email2}), trim({json_jsonfield_2})))",
       "select * from users where (users.email, table.json->>'jsonfield') in ((trim('j@flow.io'), trim('jsonvalue')), (trim('m@flow.io'), trim('jsonvalue2')))"
     )
+
+    a[AssertionError] should be thrownBy {
+      Query("select * from users")
+        .inMulti(Seq("org", "users.email"), Seq(Seq("org1", "jean@flow.io"), Seq("org2")))
+    }
+
   }
 
   it("not in multiple") {
