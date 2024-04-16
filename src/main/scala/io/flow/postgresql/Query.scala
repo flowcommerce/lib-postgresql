@@ -286,9 +286,9 @@ case class Query(
     }
   }
 
-  def optionalInMulti[T](
+  def optionalInMulti(
     columns: Seq[String],
-    values: Option[Seq[Seq[T]]],
+    values: Option[Seq[Seq[_]]],
     columnFunctions: Seq[Seq[Query.Function]] = Nil,
     valueFunctions: Seq[Seq[Query.Function]] = Nil
   ): Query =
@@ -440,9 +440,9 @@ case class Query(
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
   }
 
-  def inMulti[T](
+  def inMulti(
     columns: Seq[String],
-    values: Seq[Seq[T]],
+    values: Seq[Seq[_]],
     columnFunctions: Seq[Seq[Query.Function]] = Nil,
     valueFunctions: Seq[Seq[Query.Function]] = Nil
   ): Query =
@@ -572,9 +572,9 @@ case class Query(
     }
   }
 
-  def optionalNotInMulti[T](
+  def optionalNotInMulti(
     columns: Seq[String],
-    values: Option[Seq[Seq[T]]],
+    values: Option[Seq[Seq[_]]],
     columnFunctions: Seq[Seq[Query.Function]] = Nil,
     valueFunctions: Seq[Seq[Query.Function]] = Nil
   ): Query =
@@ -708,9 +708,9 @@ case class Query(
   ): Query =
     inClauseBuilder("not in", column, values, columnFunctions, valueFunctions)
 
-  def notInMulti[T](
+  def notInMulti(
     columns: Seq[String],
-    values: Seq[Seq[T]],
+    values: Seq[Seq[_]],
     columnFunctions: Seq[Seq[Query.Function]] = Nil,
     valueFunctions: Seq[Seq[Query.Function]] = Nil
   ): Query =
