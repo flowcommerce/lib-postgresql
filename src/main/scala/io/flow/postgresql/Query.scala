@@ -19,6 +19,10 @@ object Query {
       override def toString: String = "lower"
     }
 
+    case object Upper extends Function {
+      override def toString: String = "upper"
+    }
+
     case object Trim extends Function {
       override def toString: String = "trim"
     }
@@ -69,6 +73,14 @@ case class Query(
               resolved = resolved ++ Seq(newCondition)
             )
           }
+
+          case c: QueryCondition.Columns[_] =>
+            val newCondition = c.bind(reservedKeys)
+            resolveBoundConditions(
+              reservedKeys = reservedKeys ++ newCondition.variables.flatMap(_.map(_.name)).toSet,
+              remaining = rest,
+              resolved = resolved ++ Seq(newCondition)
+            )
 
           case QueryCondition.Not(cond) => {
             val not = resolveBoundConditions(reservedKeys, Seq(cond), Nil).toList match {
@@ -129,6 +141,7 @@ case class Query(
           case c: BoundQueryCondition.Not => findKeys(Seq(c.condition))
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables.map(_.name).toSet
+          case c: BoundQueryCondition.Columns => c.variables.flatMap(_.map(_.name)).toSet
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables.map(_.name).toSet
         }
         findKeys(rest, found ++ newKeys)
@@ -139,6 +152,7 @@ case class Query(
   private[postgresql] lazy val allBindVariables: Seq[BindVariable[_]] = {
     explicitBindVariables ++ boundConditions.flatMap {
       case c: BoundQueryCondition.Column => c.variables
+      case c: BoundQueryCondition.Columns => c.variables.flatten
       case BoundQueryCondition.Static(_) => Nil
       case c: BoundQueryCondition.Subquery => c.query.allBindVariables
       case c: BoundQueryCondition.Not => {
@@ -147,6 +161,7 @@ case class Query(
           case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Columns => c.variables.flatten
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables
         }
       }
@@ -156,6 +171,7 @@ case class Query(
           case _: BoundQueryCondition.Not => sys.error("Recursive not resolution not supported")
           case _: BoundQueryCondition.Static => Nil
           case c: BoundQueryCondition.Column => c.variables
+          case c: BoundQueryCondition.Columns => c.variables.flatten
           case c: BoundQueryCondition.Subquery => c.query.allBindVariables
         }
     }
@@ -270,15 +286,141 @@ case class Query(
     }
   }
 
-  def in(column: String, query: Query): Query = {
+  def optionalInMulti(
+    columns: Seq[String],
+    values: Option[Seq[Seq[_]]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => inMulti(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalIn2[T1, T2](
+    columns: (String, String),
+    values: Option[Seq[(T1, T2)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil)
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => in2(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalIn3[T1, T2, T3](
+    columns: (String, String, String),
+    values: Option[Seq[(T1, T2, T3)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil)
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => in3(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalIn4[T1, T2, T3, T4](
+    columns: (String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => in4(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalIn5[T1, T2, T3, T4, T5](
+    columns: (String, String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4, T5)]],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => in5(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalIn6[T1, T2, T3, T4, T5, T6](
+    columns: (String, String, String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4, T5, T6)]],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => in6(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def in(column: String, query: Query): Query =
     addSubquery(column, query, "in")
-  }
 
-  def notIn(column: String, query: Query): Query = {
+  def notIn(column: String, query: Query): Query =
     addSubquery(column, query, "not in")
-  }
 
-  private[this] def addSubquery(column: String, query: Query, operator: String): Query = {
+  private[this] def addSubquery(column: String, query: Query, operator: String): Query =
     this.copy(
       conditions = conditions ++ Seq(
         QueryCondition.Subquery(
@@ -288,7 +430,6 @@ case class Query(
         )
       )
     )
-  }
 
   def in[T](
     column: String,
@@ -298,6 +439,126 @@ case class Query(
   ): Query = {
     inClauseBuilder("in", column, values, columnFunctions, valueFunctions)
   }
+
+  def inMulti(
+    columns: Seq[String],
+    values: Seq[Seq[_]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    inMultipleClauseBuilder("in", columns, values, columnFunctions, valueFunctions)
+
+  def in2[T1, T2](
+    columns: (String, String),
+    values: Seq[(T1, T2)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "in",
+      Seq(columns._1, columns._2),
+      values.map { case (v1, v2) => Seq[Any](v1, v2) },
+      Seq(columnFunctions._1, columnFunctions._2),
+      Seq(valueFunctions._1, valueFunctions._2)
+    )
+
+  def in3[T1, T2, T3](
+    columns: (String, String, String),
+    values: Seq[(T1, T2, T3)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "in",
+      Seq(columns._1, columns._2, columns._3),
+      values.map { case (v1, v2, v3) => Seq[Any](v1, v2, v3) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3)
+    )
+
+  def in4[T1, T2, T3, T4](
+    columns: (String, String, String, String),
+    values: Seq[(T1, T2, T3, T4)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) =
+      (Nil, Nil, Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) =
+      (Nil, Nil, Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "in",
+      Seq(columns._1, columns._2, columns._3, columns._4),
+      values.map { case (v1, v2, v3, v4) => Seq[Any](v1, v2, v3, v4) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3, columnFunctions._4),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3, valueFunctions._4)
+    )
+
+  def in5[T1, T2, T3, T4, T5](
+    columns: (String, String, String, String, String),
+    values: Seq[(T1, T2, T3, T4, T5)],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (Nil, Nil, Nil, Nil, Nil),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (Nil, Nil, Nil, Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "in",
+      Seq(columns._1, columns._2, columns._3, columns._4, columns._5),
+      values.map { case (v1, v2, v3, v4, v5) => Seq[Any](v1, v2, v3, v4, v5) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3, columnFunctions._4, columnFunctions._5),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3, valueFunctions._4, valueFunctions._5)
+    )
+
+  def in6[T1, T2, T3, T4, T5, T6](
+    columns: (String, String, String, String, String, String),
+    values: Seq[(T1, T2, T3, T4, T5, T6)],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (Nil, Nil, Nil, Nil, Nil, Nil),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (Nil, Nil, Nil, Nil, Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "in",
+      Seq(columns._1, columns._2, columns._3, columns._4, columns._5, columns._6),
+      values.map { case (v1, v2, v3, v4, v5, v6) => Seq[Any](v1, v2, v3, v4, v5, v6) },
+      Seq(
+        columnFunctions._1,
+        columnFunctions._2,
+        columnFunctions._3,
+        columnFunctions._4,
+        columnFunctions._5,
+        columnFunctions._6
+      ),
+      Seq(
+        valueFunctions._1,
+        valueFunctions._2,
+        valueFunctions._3,
+        valueFunctions._4,
+        valueFunctions._5,
+        valueFunctions._6
+      )
+    )
 
   def optionalNotIn[T](
     column: String,
@@ -311,14 +572,295 @@ case class Query(
     }
   }
 
+  def optionalNotInMulti(
+    columns: Seq[String],
+    values: Option[Seq[Seq[_]]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notInMulti(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalNotIn2[T1, T2](
+    columns: (String, String),
+    values: Option[Seq[(T1, T2)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil)
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notIn2(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalNotIn3[T1, T2, T3](
+    columns: (String, String, String),
+    values: Option[Seq[(T1, T2, T3)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil)
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notIn3(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalNotIn4[T1, T2, T3, T4](
+    columns: (String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4)]],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notIn4(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalNotIn5[T1, T2, T3, T4, T5](
+    columns: (String, String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4, T5)]],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notIn5(columns, v, columnFunctions, valueFunctions)
+    }
+
+  def optionalNotIn6[T1, T2, T3, T4, T5, T6](
+    columns: (String, String, String, String, String, String),
+    values: Option[Seq[(T1, T2, T3, T4, T5, T6)]],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    values match {
+      case None => this
+      case Some(v) => notIn6(columns, v, columnFunctions, valueFunctions)
+    }
+
   def notIn[T](
     column: String,
     values: Seq[T],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
-  ): Query = {
+  ): Query =
     inClauseBuilder("not in", column, values, columnFunctions, valueFunctions)
-  }
+
+  def notInMulti(
+    columns: Seq[String],
+    values: Seq[Seq[_]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ): Query =
+    inMultipleClauseBuilder("not in", columns, values, columnFunctions, valueFunctions)
+
+  def notIn2[T1, T2](
+    columns: (String, String),
+    values: Seq[(T1, T2)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "not in",
+      Seq(columns._1, columns._2),
+      values.map { case (v1, v2) => Seq[Any](v1, v2) },
+      Seq(columnFunctions._1, columnFunctions._2),
+      Seq(valueFunctions._1, valueFunctions._2)
+    )
+
+  def notIn3[T1, T2, T3](
+    columns: (String, String, String),
+    values: Seq[(T1, T2, T3)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (Nil, Nil, Nil)
+  ): Query =
+    inMultipleClauseBuilder(
+      "not in",
+      Seq(columns._1, columns._2, columns._3),
+      values.map { case (v1, v2, v3) => Seq[Any](v1, v2, v3) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3)
+    )
+
+  def notIn4[T1, T2, T3, T4](
+    columns: (String, String, String, String),
+    values: Seq[(T1, T2, T3, T4)],
+    columnFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (Seq[Query.Function], Seq[Query.Function], Seq[Query.Function], Seq[Query.Function]) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    inMultipleClauseBuilder(
+      "not in",
+      Seq(columns._1, columns._2, columns._3, columns._4),
+      values.map { case (v1, v2, v3, v4) => Seq[Any](v1, v2, v3, v4) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3, columnFunctions._4),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3, valueFunctions._4)
+    )
+
+  def notIn5[T1, T2, T3, T4, T5](
+    columns: (String, String, String, String, String),
+    values: Seq[(T1, T2, T3, T4, T5)],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    inMultipleClauseBuilder(
+      "not in",
+      Seq(columns._1, columns._2, columns._3, columns._4, columns._5),
+      values.map { case (v1, v2, v3, v4, v5) => Seq[Any](v1, v2, v3, v4, v5) },
+      Seq(columnFunctions._1, columnFunctions._2, columnFunctions._3, columnFunctions._4, columnFunctions._5),
+      Seq(valueFunctions._1, valueFunctions._2, valueFunctions._3, valueFunctions._4, valueFunctions._5)
+    )
+
+  def notIn6[T1, T2, T3, T4, T5, T6](
+    columns: (String, String, String, String, String, String),
+    values: Seq[(T1, T2, T3, T4, T5, T6)],
+    columnFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    ),
+    valueFunctions: (
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function],
+      Seq[Query.Function]
+    ) = (
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil,
+      Nil
+    )
+  ): Query =
+    inMultipleClauseBuilder(
+      "not in",
+      Seq(columns._1, columns._2, columns._3, columns._4, columns._5, columns._6),
+      values.map { case (v1, v2, v3, v4, v5, v6) => Seq[Any](v1, v2, v3, v4, v5, v6) },
+      Seq(
+        columnFunctions._1,
+        columnFunctions._2,
+        columnFunctions._3,
+        columnFunctions._4,
+        columnFunctions._5,
+        columnFunctions._6
+      ),
+      Seq(
+        valueFunctions._1,
+        valueFunctions._2,
+        valueFunctions._3,
+        valueFunctions._4,
+        valueFunctions._5,
+        valueFunctions._6
+      )
+    )
 
   private[this] def inClauseBuilder[T](
     operator: String,
@@ -343,6 +885,37 @@ case class Query(
         )
       )
     )
+  }
+
+  private[this] def inMultipleClauseBuilder[T](
+    operator: String,
+    columns: Seq[String],
+    values: Seq[Seq[T]],
+    columnFunctions: Seq[Seq[Query.Function]],
+    valueFunctions: Seq[Seq[Query.Function]]
+  ): Query = {
+    assert(
+      operator == "in" || operator == "not in",
+      s"Invalid operation[$operator] - must be 'in' or 'not in'"
+    )
+    values.zipWithIndex.find { case (vs, _) => vs.size != columns.size }.map { case (vs, i) => (i, vs.size) } match {
+      case Some((i, size)) =>
+        val msg = s"Invalid number of values at index $i: columns.size = ${columns.size} but values[$i].size = $size." +
+          s" You must provide as many values as columns."
+        throw new java.lang.AssertionError(msg)
+      case None =>
+        this.copy(
+          conditions = conditions ++ Seq(
+            QueryCondition.Columns(
+              columns = columns,
+              operator = operator,
+              values = values,
+              columnFunctions = columnFunctions,
+              valueFunctions = valueFunctions
+            )
+          )
+        )
+    }
   }
 
   def or(
@@ -676,6 +1249,39 @@ case class Query(
         }
       }
 
+      case c: BoundQueryCondition.Columns =>
+        c.variables.toList match {
+          case Nil => "false" // Intentionally match no rows on empty list
+
+          case bindVar :: Nil if c.operator != "in" && c.operator != "not in" => {
+            val exprColumn = withFunctionsMultiple(c.columns, c.columnFunctions, bindVar.map(_.value))
+            val functions =
+              bindVar
+                .map(_.defaultValueFunctions)
+                .zipAll[Seq[Query.Function], Seq[Query.Function]](c.valueFunctions, Seq.empty, Seq.empty)
+                .map { case (df, vf) => vf ++ df }
+            val exprValue =
+              withFunctionsMultiple(bindVar.map(_.sqlPlaceholder), functions, bindVar.map(_.value))
+            s"$exprColumn ${c.operator} $exprValue"
+          }
+
+          case multiple =>
+            val values = multiple.head.map(_.value)
+            val exprColumn = withFunctionsMultiple(c.columns, c.columnFunctions, values)
+            s"$exprColumn ${c.operator} (%s)".format(
+              multiple
+                .map { bindVar =>
+                  val functions =
+                    bindVar
+                      .map(_.defaultValueFunctions)
+                      .zipAll[Seq[Query.Function], Seq[Query.Function]](c.valueFunctions, Seq.empty, Seq.empty)
+                      .map { case (df, vf) => vf ++ df }
+                  withFunctionsMultiple(bindVar.map(_.sqlPlaceholder), functions, values)
+                }
+                .mkString(", ")
+            )
+        }
+
       case BoundQueryCondition.Static(expression) => expression
 
       case c: BoundQueryCondition.Subquery => {
@@ -736,11 +1342,24 @@ case class Query(
     name: String,
     functions: Seq[Query.Function],
     value: T
-  ): String = {
-    applicableFunctions(functions, value).distinct.reverse.foldLeft(name) { case (acc, function) =>
-      s"$function($acc)"
-    }
-  }
+  ): String =
+    applicableFunctions(functions, value).distinct.reverse.foldLeft(name) { case (acc, function) => s"$function($acc)" }
+
+  /** Apply functions to the column or value in the query. An example use case is to apply (lower(trim(n1)),
+    * lower(trim(n2))) to enable case insensitive text matching.
+    */
+  private[this] def withFunctionsMultiple[T](
+    names: Seq[String],
+    functions: Seq[Seq[Query.Function]],
+    values: Seq[T]
+  ): String =
+    names
+      .zip(values)
+      .map(Some(_))
+      .zipAll(functions, Option.empty[(String, T)], Seq.empty)
+      .collect { case (Some((n, v)), fs) => (n, v, fs) }
+      .map { case (n, v, fs) => withFunctions(n, fs, v) }
+      .mkString("(", ", ", ")")
 
   /** Doesn't makes sense to apply lower/trim on all types. select only applicable filters based on the type of the
     * value
@@ -749,21 +1368,11 @@ case class Query(
   private[this] def applicableFunctions[T](
     functions: Seq[Query.Function],
     value: T
-  ): Seq[Query.Function] = {
+  ): Seq[Query.Function] =
     value match {
       case None | _: UUID | _: LocalDate | _: DateTime | _: Int | _: Long | _: Number | _: Unit => Nil
       case Some(v) => applicableFunctions(functions, v)
       case _ => functions
     }
-  }
 
-}
-
-object PrintOnce {
-  private[this] val seen = collection.mutable.Set[String]()
-  def printIfNew(msg: String): Unit = {
-    if (seen.add(msg)) {
-      println(msg)
-    }
-  }
 }

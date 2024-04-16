@@ -28,7 +28,32 @@ object QueryCondition {
         }
       )
     }
+  }
 
+  case class Columns[T](
+    columns: Seq[String],
+    operator: String,
+    values: Seq[Seq[T]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
+  ) extends QueryCondition {
+    def bind(reservedKeys: Set[String]): BoundQueryCondition.Columns = {
+      val columnsArr = columns.toArray
+      val allocated = scala.collection.mutable.Set[String]()
+      BoundQueryCondition.Columns(
+        columns = columns,
+        operator = operator,
+        columnFunctions = columnFunctions,
+        valueFunctions = valueFunctions,
+        variables = values.map { vs =>
+          vs.zipWithIndex.map { case (value, i) =>
+            val name = uniqueName(reservedKeys ++ allocated, columnsArr(i))
+            allocated.add(name)
+            BindVariable(name, value)
+          }
+        }
+      )
+    }
   }
 
   case class Static(expression: String) extends QueryCondition
@@ -86,6 +111,15 @@ object BoundQueryCondition {
     variables: Seq[BindVariable[_]],
     columnFunctions: Seq[Query.Function] = Nil,
     valueFunctions: Seq[Query.Function] = Nil
+  ) extends BoundQueryCondition
+
+  case class Columns(
+    columns: Seq[String],
+    operator: String,
+    // We do not flatten variables to better represent the structure of the query
+    variables: Seq[Seq[BindVariable[_]]],
+    columnFunctions: Seq[Seq[Query.Function]] = Nil,
+    valueFunctions: Seq[Seq[Query.Function]] = Nil
   ) extends BoundQueryCondition
 
   case class Static(expression: String) extends BoundQueryCondition
