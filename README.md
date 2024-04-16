@@ -147,7 +147,5 @@ Parsing is based on anorm parser.
 
 ```scala
 val q = Query("SELECT id, name FROM organizations")
-val res: List[(String, String)] = q.as((str("id") ~ str("name")).*) .map {
-  case id ~ name => (id, name)
-}
+val res: List[(String, String)] = q.as((str("id") ~ str("name")).*).map { case id ~ name => (id, name) }
 ```
