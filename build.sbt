@@ -4,7 +4,7 @@ name := "lib-postgresql-play28"
 
 organization := "io.flow"
 
-scalaVersion := "2.13.10"
+scalaVersion := "2.13.13"
 ThisBuild / javacOptions ++= Seq("-source", "17", "-target", "17")
 
 enablePlugins(GitVersioning)
