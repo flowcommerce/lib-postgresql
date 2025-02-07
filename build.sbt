@@ -1,7 +1,7 @@
 import sbt.Credentials
 
-name := "lib-postgresql-play28"
-
+name := "lib-postgresql-play29"
+version := "1.0.0-SNAPSHOT"
 organization := "io.flow"
 
 scalaVersion := "2.13.15"
