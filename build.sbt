@@ -1,7 +1,5 @@
 import sbt.Credentials
-
-name := "lib-postgresql-play28"
-
+name := "lib-postgresql-play29"
 organization := "io.flow"
 
 scalaVersion := "2.13.15"
@@ -35,7 +33,7 @@ lazy val root = project
     scalacOptions ++= allScalacOptions ++ Seq("-release", "17"),
     libraryDependencies ++= Seq(
       "org.playframework.anorm" %% "anorm" % "2.8.1",
-      "io.flow" %% "lib-test-utils-play28" % "0.2.44" % Test,
+      "io.flow" %% "lib-test-utils-play29" % "0.2.45" % Test,
       "org.postgresql" % "postgresql" % "42.7.5" % Test
     ),
     resolvers += "Typesafe repository" at "https://repo.typesafe.com/typesafe/releases/",
