@@ -35,7 +35,6 @@ CREATE TABLE partman5.part_config (
 );
 
 CREATE INDEX part_config_type_idx ON partman5.part_config (partition_type);
-SELECT pg_catalog.pg_extension_config_dump('partman5.part_config'::regclass, '');
 
 
 -- FK set deferrable because create_parent() & create_sub_parent() inserts to this table before part_config
@@ -70,7 +69,6 @@ CREATE TABLE partman5.part_config_sub (
     , CONSTRAINT part_config_sub_sub_parent_fkey FOREIGN KEY (sub_parent) REFERENCES partman5.part_config (parent_table) ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED
     , CONSTRAINT positive_premake_check CHECK (sub_premake > 0)
 );
-SELECT pg_catalog.pg_extension_config_dump('partman5.part_config_sub'::regclass, '');
 
 -- Ensure the control column cannot be one of the additional constraint columns.
 ALTER TABLE partman5.part_config ADD CONSTRAINT control_constraint_col_chk CHECK ((constraint_cols @> ARRAY[control]) <> true);
