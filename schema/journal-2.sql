@@ -210,40 +210,42 @@ begin
 end;
 $$;
 
-create or replace function journal.refresh_journaling(
-  p_source_schema_name in varchar, p_source_table_name in varchar,
-  p_target_schema_name in varchar, p_target_table_name in varchar
-) returns varchar language plpgsql as $$
+CREATE OR REPLACE FUNCTION journal.refresh_journaling_native(p_source_schema_name character varying, p_source_table_name character varying, p_target_schema_name character varying, p_target_table_name character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
 declare
   row record;
   v_journal_name text;
   v_data_type character varying;
+  v_create bool;
 begin
   v_journal_name = p_target_schema_name || '.' || p_target_table_name;
-  if exists(select 1 from information_schema.tables where table_schema = p_target_schema_name and table_name = p_target_table_name) then
-    for row in (select column_name, journal.get_data_type_string(information_schema.columns.*) as data_type from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
 
-      -- NB: Specifically choosing to not drop deleted columns from the journal table, to preserve the data.
-      -- There are no constraints (other than not null on primary key columns) on the journaling table
-      -- columns anyway, so leaving it populated with null will be fine.
-      select journal.get_data_type_string(information_schema.columns.*) into v_data_type from information_schema.columns where table_schema = p_target_schema_name and table_name = p_target_table_name and column_name = row.column_name;
-      if not found then
-        execute 'alter table ' || v_journal_name || ' add ' || row.column_name || ' ' || row.data_type;
-      elsif (row.data_type != v_data_type) then
-        execute 'alter table ' || v_journal_name || ' alter column ' || row.column_name || ' type ' || row.data_type;
-      end if;
+  v_create = not exists(select 1 from information_schema.tables where table_schema = p_target_schema_name and table_name = p_target_table_name);
 
-    end loop;
-  else
-    execute 'create table ' || v_journal_name || ' as select * from ' || p_source_schema_name || '.' || p_source_table_name || ' limit 0';
-    execute 'alter table ' || v_journal_name || ' add journal_timestamp timestamp with time zone not null default now() ';
-    execute 'alter table ' || v_journal_name || ' add journal_operation text not null ';
-    execute 'alter table ' || v_journal_name || ' add journal_id bigserial primary key ';
-    execute 'alter table ' || v_journal_name || ' set (fillfactor=100) ';
-    execute 'comment on table ' || v_journal_name || ' is ''Created by plsql function refresh_journaling to shadow all inserts and updates on the table ' || p_source_schema_name || '.' || p_source_table_name || '''';
+  if v_create then
+    execute 'create table ' || v_journal_name || ' (journal_timestamp timestamp with time zone not null default now(), journal_operation text not null, journal_id bigserial not null) partition by range (journal_timestamp)';
+    execute 'create table partman5.template_' || p_target_schema_name || '_' || p_target_table_name || ' (journal_id bigserial primary key)';
+    execute 'comment on table ' || v_journal_name || ' is ''Created by plsql function refresh_journaling_native to shadow all inserts and updates on the table ' || p_source_schema_name || '.' || p_source_table_name || '''';
+  end if;
+
+  for row in (select column_name, journal.get_data_type_string(information_schema.columns.*) as data_type from information_schema.columns where table_schema = p_source_schema_name and table_name = p_source_table_name order by ordinal_position) loop
+
+    -- NB: Specifically choosing to not drop deleted columns from the journal table, to preserve the data.
+    -- There are no constraints (other than not null on primary key columns) on the journaling table
+    -- columns anyway, so leaving it populated with null will be fine.
+    select journal.get_data_type_string(information_schema.columns.*) into v_data_type from information_schema.columns where table_schema = p_target_schema_name and table_name = p_target_table_name and column_name = row.column_name;
+    if not found then
+      execute 'alter table ' || v_journal_name || ' add ' || journal.quote_column(row.column_name) || ' ' || row.data_type;
+    elsif (row.data_type != v_data_type) then
+      execute 'alter table ' || v_journal_name || ' alter column ' || journal.quote_column(row.column_name) || ' type ' || row.data_type;
+    end if;
+
+  end loop;
+
+  if v_create then
     perform journal.add_primary_key_data(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
-    perform journal.create_prevent_update_trigger(p_target_schema_name, p_target_table_name);
-    perform journal.create_prevent_delete_trigger(p_target_schema_name, p_target_table_name);
   end if;
 
   perform journal.refresh_journal_trigger(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
@@ -251,7 +253,16 @@ begin
   return v_journal_name;
 
 end;
-$$;
+$function$;
+
+CREATE OR REPLACE FUNCTION journal.refresh_journaling(p_source_schema_name character varying, p_source_table_name character varying, p_target_schema_name character varying, p_target_table_name character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+  RETURN journal.refresh_journaling_native(p_source_schema_name, p_source_table_name, p_target_schema_name, p_target_table_name);
+END;
+$function$;
 
 create or replace function create_prevent_delete_trigger(p_schema_name character varying, p_table_name character varying) returns character varying
   language plpgsql
