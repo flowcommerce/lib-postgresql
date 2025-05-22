@@ -210,6 +210,15 @@ begin
 end;
 $$;
 
+CREATE FUNCTION journal.quote_column(name information_schema.sql_identifier)
+ RETURNS text
+ LANGUAGE plpgsql
+AS $function$
+begin
+  return '"' || name || '"';
+end;
+$function$;
+
 CREATE OR REPLACE FUNCTION journal.refresh_journaling_native(p_source_schema_name character varying, p_source_table_name character varying, p_target_schema_name character varying, p_target_table_name character varying)
  RETURNS character varying
  LANGUAGE plpgsql
