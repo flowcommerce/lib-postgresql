@@ -2,7 +2,7 @@ import sbt.Credentials
 name := "lib-postgresql-play29"
 organization := "io.flow"
 
-scalaVersion := "2.13.15"
+scalaVersion := "2.13.16"
 ThisBuild / javacOptions ++= Seq("-source", "17", "-target", "17")
 
 enablePlugins(GitVersioning)
