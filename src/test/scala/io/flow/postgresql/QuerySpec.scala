@@ -1080,4 +1080,11 @@ class QuerySpec extends AnyFunSpec with Matchers {
     validate(Query(q), q, q)
   }
 
+  it("timeout") {
+    import scala.concurrent.duration._
+    Query("select * from foo").anormSql().sql.timeout shouldBe None
+    Query("select * from foo").timeout(Some(1.second)).anormSql().sql.timeout shouldBe Some(1)
+    Query("select * from foo").timeout(Some(1.millis)).anormSql().sql.timeout shouldBe Some(0)
+    Query("select * from foo").timeout(Some(1.minute)).anormSql().sql.timeout shouldBe Some(60)
+  }
 }
