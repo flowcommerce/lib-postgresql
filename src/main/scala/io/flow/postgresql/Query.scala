@@ -5,6 +5,7 @@ import org.joda.time.{DateTime, LocalDate}
 
 import java.util.UUID
 import scala.annotation.tailrec
+import scala.concurrent.duration.FiniteDuration
 
 object Query {
 
@@ -42,7 +43,8 @@ case class Query(
   having: Option[String] = None,
   locking: Option[String] = None,
   explicitBindVariables: Seq[BindVariable[_]] = Nil,
-  reservedBindVariableNames: Set[String] = Set.empty
+  reservedBindVariableNames: Set[String] = Set.empty,
+  timeout: Option[FiniteDuration] = None
 ) {
 
   private[this] lazy val boundConditions: Seq[BoundQueryCondition] = {
@@ -1148,6 +1150,10 @@ case class Query(
     this.copy(offset = Some(value))
   }
 
+  def timeout(value: Option[FiniteDuration]): Query = {
+    this.copy(timeout = value)
+  }
+
   def locking(clause: String): Query = copy(locking = Some(clause))
 
   /** Creates the full text of the sql query
@@ -1335,7 +1341,9 @@ case class Query(
     if (debug) {
       println(debuggingInfo())
     }
-    SQL(sql()).on(allBindVariables.map(_.toNamedParameter): _*)
+    SQL(sql())
+      .withQueryTimeout(timeout.map(_.toSeconds.toInt))
+      .on(allBindVariables.map(_.toNamedParameter): _*)
   }
 
   private[this] def withFunctions[T](
